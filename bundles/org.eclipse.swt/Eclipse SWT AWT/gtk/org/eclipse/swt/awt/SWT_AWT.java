@@ -295,5 +295,5 @@ public static Shell new_Shell (final Display display, final Canvas parent) {
 	shell.addListener(SWT.Dispose, event -> parent.removeComponentListener(listener));
 	shell.setVisible (true);
 	return shell;
-}
+}f
 }
