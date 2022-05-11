@@ -17,7 +17,7 @@ import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
-public class BrowserDemoPlugin extends AbstractUIPlugin {
+public class BrowserDemoPlugin extends AbstractUIPlugin { 
 
 	public static String PLUGIN_PATH = null;
 	
