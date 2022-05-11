@@ -16,7 +16,7 @@ Information regarding source code management, builds, coding standards, and more
 
 - <https://projects.eclipse.org/projects/eclipse.platform.swt/developer>
 
-Contributor License Agreement:
+Contributor License Agreement: 
 ------------------------------
 
 Before your contribution can be accepted by the project, you need to create and electronically sign the Eclipse Foundation Contributor License Agreement (CLA).
