@@ -12971,6 +12971,54 @@ JNIEXPORT void JNICALL OS_NATIVE(g_1value_1unset)
 }
 #endif
 
+#ifndef NO_g_1variant_1builder_1add__J_3BJ
+JNIEXPORT void JNICALL OS_NATIVE(g_1variant_1builder_1add__J_3BJ)
+	(JNIEnv *env, jclass that, jlong arg0, jbyteArray arg1, jlong arg2)
+{
+	jbyte *lparg1=NULL;
+	OS_NATIVE_ENTER(env, that, g_1variant_1builder_1add__J_3BJ_FUNC);
+	if (arg1) if ((lparg1 = (*env)->GetByteArrayElements(env, arg1, NULL)) == NULL) goto fail;
+	g_variant_builder_add((GVariantBuilder *)arg0, (const gchar *)lparg1, arg2);
+fail:
+	if (arg1 && lparg1) (*env)->ReleaseByteArrayElements(env, arg1, lparg1, 0);
+	OS_NATIVE_EXIT(env, that, g_1variant_1builder_1add__J_3BJ_FUNC);
+}
+#endif
+
+#ifndef NO_g_1variant_1builder_1add__J_3B_3B
+JNIEXPORT void JNICALL OS_NATIVE(g_1variant_1builder_1add__J_3B_3B)
+	(JNIEnv *env, jclass that, jlong arg0, jbyteArray arg1, jbyteArray arg2)
+{
+	jbyte *lparg1=NULL;
+	jbyte *lparg2=NULL;
+	OS_NATIVE_ENTER(env, that, g_1variant_1builder_1add__J_3B_3B_FUNC);
+	if (arg1) if ((lparg1 = (*env)->GetByteArrayElements(env, arg1, NULL)) == NULL) goto fail;
+	if (arg2) if ((lparg2 = (*env)->GetByteArrayElements(env, arg2, NULL)) == NULL) goto fail;
+	g_variant_builder_add((GVariantBuilder *)arg0, (const gchar *)lparg1, (const gchar *)lparg2);
+fail:
+	if (arg2 && lparg2) (*env)->ReleaseByteArrayElements(env, arg2, lparg2, 0);
+	if (arg1 && lparg1) (*env)->ReleaseByteArrayElements(env, arg1, lparg1, 0);
+	OS_NATIVE_EXIT(env, that, g_1variant_1builder_1add__J_3B_3B_FUNC);
+}
+#endif
+
+#ifndef NO_g_1variant_1builder_1add__J_3B_3BJ
+JNIEXPORT void JNICALL OS_NATIVE(g_1variant_1builder_1add__J_3B_3BJ)
+	(JNIEnv *env, jclass that, jlong arg0, jbyteArray arg1, jbyteArray arg2, jlong arg3)
+{
+	jbyte *lparg1=NULL;
+	jbyte *lparg2=NULL;
+	OS_NATIVE_ENTER(env, that, g_1variant_1builder_1add__J_3B_3BJ_FUNC);
+	if (arg1) if ((lparg1 = (*env)->GetByteArrayElements(env, arg1, NULL)) == NULL) goto fail;
+	if (arg2) if ((lparg2 = (*env)->GetByteArrayElements(env, arg2, NULL)) == NULL) goto fail;
+	g_variant_builder_add((GVariantBuilder *)arg0, (const gchar *)lparg1, (const gchar *)lparg2, arg3);
+fail:
+	if (arg2 && lparg2) (*env)->ReleaseByteArrayElements(env, arg2, lparg2, 0);
+	if (arg1 && lparg1) (*env)->ReleaseByteArrayElements(env, arg1, lparg1, 0);
+	OS_NATIVE_EXIT(env, that, g_1variant_1builder_1add__J_3B_3BJ_FUNC);
+}
+#endif
+
 #ifndef NO_g_1variant_1builder_1add_1value
 JNIEXPORT void JNICALL OS_NATIVE(g_1variant_1builder_1add_1value)
 	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
@@ -13177,6 +13225,25 @@ fail:
 	if (arg1 && lparg1) (*env)->ReleaseByteArrayElements(env, arg1, lparg1, JNI_ABORT);
 	if (arg0 && lparg0) (*env)->ReleaseByteArrayElements(env, arg0, lparg0, JNI_ABORT);
 	OS_NATIVE_EXIT(env, that, g_1variant_1new___3B_3B_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_g_1variant_1new___3B_3BJ
+JNIEXPORT jlong JNICALL OS_NATIVE(g_1variant_1new___3B_3BJ)
+	(JNIEnv *env, jclass that, jbyteArray arg0, jbyteArray arg1, jlong arg2)
+{
+	jbyte *lparg0=NULL;
+	jbyte *lparg1=NULL;
+	jlong rc = 0;
+	OS_NATIVE_ENTER(env, that, g_1variant_1new___3B_3BJ_FUNC);
+	if (arg0) if ((lparg0 = (*env)->GetByteArrayElements(env, arg0, NULL)) == NULL) goto fail;
+	if (arg1) if ((lparg1 = (*env)->GetByteArrayElements(env, arg1, NULL)) == NULL) goto fail;
+	rc = (jlong)g_variant_new((const gchar *)lparg0, (const gchar *)lparg1, arg2);
+fail:
+	if (arg1 && lparg1) (*env)->ReleaseByteArrayElements(env, arg1, lparg1, JNI_ABORT);
+	if (arg0 && lparg0) (*env)->ReleaseByteArrayElements(env, arg0, lparg0, JNI_ABORT);
+	OS_NATIVE_EXIT(env, that, g_1variant_1new___3B_3BJ_FUNC);
 	return rc;
 }
 #endif

@@ -2026,6 +2026,31 @@ public static final native long g_variant_builder_new(long type);
 public static final native void g_variant_builder_add_value(long builder, long value);
 
 /**
+ * @param builder cast=(GVariantBuilder *)
+ * @param type cast=(const gchar *)
+ * @param value
+ * @category gdbus
+ */
+public static final native void g_variant_builder_add(long builder, byte[] type, long value);
+
+/**
+ * @param builder cast=(GVariantBuilder *)
+ * @param type cast=(const gchar *)
+ * @param value cast=(const gchar *)
+ * @category gdbus
+ */
+public static final native void g_variant_builder_add(long builder, byte[] type, byte[] value );
+
+/**
+ * @param builder cast=(GVariantBuilder *)
+ * @param type cast=(const gchar *)
+ * @param arg1 cast=(const gchar *)
+ * @param value
+ * @category gdbus
+ */
+public static final native void g_variant_builder_add(long builder, byte[] type, byte[] arg1, long value);
+
+/**
  * @param type cast=(GVariantType *)
  * @category gdbus
  */
@@ -2063,6 +2088,14 @@ public static final native long g_variant_new (byte[] format_string, byte[] arg0
  * @category gdbus
  */
 public static final native long g_variant_new (byte[] format_string, boolean arg0, byte[] arg1);
+
+/**
+ * @param format_string cast=(const gchar *),flags=no_out
+ * @param arg0 cast=(const gchar *),flags=no_out
+ * @param builder
+ * @category gdbus
+ */
+public static final native long g_variant_new (byte[] format_string, byte[] arg0, long builder);
 
 /**
  * @param format_string cast=(const gchar *),flags=no_out
