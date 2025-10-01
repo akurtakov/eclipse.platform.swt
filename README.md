@@ -5,7 +5,7 @@
 
 # About
 
-SWT is a cross-platform GUI library for JVM based desktop applications.
+fdfSWT is a cross-platform GUI library for JVM based desktop applications.
 The best known SWT-based application is [Eclipse](https://www.eclipse.org).
 
 ## Getting Started
