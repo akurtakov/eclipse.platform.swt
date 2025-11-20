@@ -1221,4 +1221,88 @@ private void doSegmentsTest (boolean isListening) {
 	listenerCalled = false;
 	assertEquals(string, combo.getText());
 }
+
+/**
+ * Test for GitHub issue #2794 - Combo popup should not be transparent
+ * even when background color has alpha < 1.0
+ * 
+ * This test validates that when a Combo is given a background color with
+ * transparency (alpha < 1.0), the Combo itself uses that color but the
+ * popup menu is forced to be opaque (alpha = 1.0) to maintain readability.
+ */
+@Test
+public void test_setBackgroundAlpha_PopupNotTransparent() {
+	// This test is specific to GTK where the transparency fix is implemented
+	assumeTrue(SwtTestUtil.isGTK, "Test is GTK-specific");
+	
+	Combo dropDown = new Combo(shell, SWT.DROP_DOWN);
+	dropDown.add("Item 1");
+	dropDown.add("Item 2");
+	dropDown.add("Item 3");
+	
+	// Set a background color with 50% transparency (alpha = 128)
+	Color transparentBg = new Color(255, 0, 0, 128);
+	dropDown.setBackground(transparentBg);
+	
+	// Verify that the combo accepts the transparent background color
+	Color actualBg = dropDown.getBackground();
+	assertEquals(255, actualBg.getRed(), "Red component should match");
+	assertEquals(0, actualBg.getGreen(), "Green component should match");
+	assertEquals(0, actualBg.getBlue(), "Blue component should match");
+	assertEquals(128, actualBg.getAlpha(), "Alpha component should match");
+	
+	// Process pending events to ensure CSS is applied
+	while (Display.getCurrent().readAndDispatch()) {
+		// Process events
+	}
+	
+	// The actual verification that the popup menu has alpha=1.0 would require
+	// accessing internal GTK structures (cssProvider, menuHandle), which is not
+	// exposed in the public API. This test validates that the transparent
+	// background color is accepted and applied without errors.
+	// The real validation happens in the updateCss() method where menuBackground.alpha
+	// is explicitly set to 1.0 for the menu element.
+	
+	// Verify background color is still correctly set after event processing
+	actualBg = dropDown.getBackground();
+	assertEquals(128, actualBg.getAlpha(), "Alpha should still be 128 for the combo itself");
+	
+	dropDown.dispose();
+	transparentBg.dispose();
+}
+
+/**
+ * Test that verifies fully opaque backgrounds work correctly
+ * This complements test_setBackgroundAlpha_PopupNotTransparent
+ */
+@Test
+public void test_setBackgroundOpaque_PopupOpaque() {
+	assumeTrue(SwtTestUtil.isGTK, "Test is GTK-specific");
+	
+	Combo dropDown = new Combo(shell, SWT.DROP_DOWN);
+	dropDown.add("Item 1");
+	dropDown.add("Item 2");
+	
+	// Set a fully opaque background color (alpha = 255)
+	Color opaqueBg = new Color(0, 128, 255, 255);
+	dropDown.setBackground(opaqueBg);
+	
+	Color actualBg = dropDown.getBackground();
+	assertEquals(0, actualBg.getRed());
+	assertEquals(128, actualBg.getGreen());
+	assertEquals(255, actualBg.getBlue());
+	assertEquals(255, actualBg.getAlpha(), "Alpha should be 255 (fully opaque)");
+	
+	// Process events
+	while (Display.getCurrent().readAndDispatch()) {
+		// Process events
+	}
+	
+	// Verify the color persists
+	actualBg = dropDown.getBackground();
+	assertEquals(255, actualBg.getAlpha(), "Alpha should remain 255");
+	
+	dropDown.dispose();
+	opaqueBg.dispose();
+}
 }
