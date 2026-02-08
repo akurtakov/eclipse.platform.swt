@@ -2160,6 +2160,22 @@ JNIEXPORT jlong JNICALL GTK4_NATIVE(gtk_1popover_1menu_1new_1from_1model_1full)
 }
 #endif
 
+#ifndef NO_gtk_1popover_1menu_1add_1child
+JNIEXPORT jboolean JNICALL GTK4_NATIVE(gtk_1popover_1menu_1add_1child)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1, jbyteArray arg2)
+{
+	jbyte *lparg2=NULL;
+	jboolean rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gtk_1popover_1menu_1add_1child_FUNC);
+	if (arg2) if ((lparg2 = (*env)->GetByteArrayElements(env, arg2, NULL)) == NULL) goto fail;
+	rc = (jboolean)gtk_popover_menu_add_child((GtkPopoverMenu *)arg0, (GtkWidget *)arg1, (const char *)lparg2);
+fail:
+	if (arg2 && lparg2) (*env)->ReleaseByteArrayElements(env, arg2, lparg2, 0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1popover_1menu_1add_1child_FUNC);
+	return rc;
+}
+#endif
+
 #ifndef NO_gtk_1popover_1menu_1set_1menu_1model
 JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1popover_1menu_1set_1menu_1model)
 	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)

@@ -551,6 +551,13 @@ public class GTK4 {
 	/** @param popover cast=(GtkPopover *) */
 	public static final native void gtk_popover_set_has_arrow(long popover, boolean has_arrow);
 
+	/**
+	 * @param popover cast=(GtkPopoverMenu *)
+	 * @param child cast=(GtkWidget *)
+	 * @param id cast=(const char *)
+	 */
+	public static final native boolean gtk_popover_menu_add_child(long popover, long child, byte[] id);
+
 	/* GtkPopoverMenuBar */
 	/** @param model cast=(GMenuModel *) */
 	public static final native long gtk_popover_menu_bar_new_from_model(long model);

@@ -69,6 +69,10 @@ public class MenuItem extends Item {
 	long modelHandle, actionHandle, shortcutHandle;
 	Section section;
 	String actionName;
+	
+	/* GTK4 custom widget support for icons */
+	long buttonHandle;  // Custom button widget for the menu item
+	String customId;    // Unique ID for custom widget registration
 
 /**
  * Constructs a new instance of this class given its parent
@@ -298,6 +302,64 @@ void createHandle(int index) {
 				actionName = String.valueOf(parent.hashCode()) + "." + String.valueOf(this.hashCode());
 				handle = OS.g_menu_item_new(null, Converter.javaStringToCString(actionName));
 				break;
+		}
+
+		/* 
+		 * GTK4: Create custom widgets for menu items to support icons.
+		 * GTK4 PopoverMenu does not support icons via the standard GIO MenuItem API.
+		 * We work around this by:
+		 * 1. Setting a "custom" attribute on the GMenuItem model
+		 * 2. Creating a custom widget (button with box containing image+label)
+		 * 3. Registering the custom widget with the parent menu's PopoverMenu
+		 */
+		if ((style & SWT.SEPARATOR) == 0) {
+			// Create unique ID for this menu item's custom widget
+			customId = "swt-item-" + this.hashCode();
+			byte[] idBytes = Converter.javaStringToCString(customId);
+			
+			// Set "custom" attribute on the GMenuItem model
+			byte[] customAttr = Converter.javaStringToCString("custom");
+			byte[] stringFormat = Converter.javaStringToCString("s");
+			OS.g_menu_item_set_attribute(handle, customAttr, stringFormat, idBytes);
+			
+			// Create custom widget structure: Button -> Box -> [Image + Label]
+			buttonHandle = GTK.gtk_button_new();
+			if (buttonHandle == 0) error(SWT.ERROR_NO_HANDLES);
+			
+			boxHandle = gtk_box_new(GTK.GTK_ORIENTATION_HORIZONTAL, false, 6);
+			if (boxHandle == 0) error(SWT.ERROR_NO_HANDLES);
+			
+			// Create image handle (initially empty, will be populated by setImage)
+			imageHandle = GTK.gtk_image_new();
+			if (imageHandle == 0) error(SWT.ERROR_NO_HANDLES);
+			GTK4.gtk_box_append(boxHandle, imageHandle);
+			
+			// Create label handle (will be populated by setText)
+			labelHandle = GTK.gtk_label_new_with_mnemonic(null);
+			if (labelHandle == 0) error(SWT.ERROR_NO_HANDLES);
+			GTK.gtk_label_set_xalign(labelHandle, 0);
+			GTK.gtk_widget_set_halign(labelHandle, GTK.GTK_ALIGN_FILL);
+			GTK4.gtk_box_append(boxHandle, labelHandle);
+			
+			// Put the box into the button
+			GTK4.gtk_button_set_child(buttonHandle, boxHandle);
+			
+			// Style the button to look like a menu item
+			byte[] modelClass = Converter.javaStringToCString("model");
+			byte[] flatClass = Converter.javaStringToCString("flat");
+			GTK.gtk_widget_add_css_class(buttonHandle, modelClass);
+			GTK.gtk_widget_add_css_class(buttonHandle, flatClass);
+			
+			// Register custom widget with parent PopoverMenu
+			// Note: The parent menu must be a PopoverMenu for this to work
+			if (parent.handle != 0) {
+				GTK4.gtk_popover_menu_add_child(parent.handle, buttonHandle, idBytes);
+			}
+			
+			// Connect button click to action
+			if (actionHandle != 0) {
+				OS.g_signal_connect_closure(buttonHandle, OS.clicked, display.getClosure(CLICKED), false);
+			}
 		}
 
 
@@ -1028,9 +1090,6 @@ public void setID (int id) {
  */
 @Override
 public void setImage (Image image) {
-	//TODO: GTK4 Menu images with text are no longer supported
-	if (GTK.GTK4) return;
-
 	checkWidget();
 	if (this.image == image) return;
 	if ((style & SWT.SEPARATOR) != 0) return;
@@ -1041,6 +1100,38 @@ public void setImage (Image image) {
 }
 
 private void _setImage (Image image) {
+	if (GTK.GTK4) {
+		// GTK4: Update the image in the custom widget
+		if (image != null) {
+			ImageList imageList = parent.imageList;
+			if (imageList == null) imageList = parent.imageList = new ImageList();
+			int imageIndex = imageList.indexOf(image);
+			if (imageIndex == -1) {
+				imageIndex = imageList.add(image);
+			} else {
+				imageList.put(imageIndex, image);
+			}
+			
+			// Use paintable approach similar to ToolItem
+			long pixbuf = ImageList.createPixbuf(image);
+			long texture = GDK.gdk_texture_new_for_pixbuf(pixbuf);
+			OS.g_object_unref(pixbuf);
+			
+			if (imageHandle != 0) {
+				GTK4.gtk_image_set_from_paintable(imageHandle, texture);
+				gtk_widget_show(imageHandle);
+			}
+		} else {
+			// Clear the image
+			if (imageHandle != 0) {
+				GTK4.gtk_image_clear(imageHandle);
+				gtk_widget_hide(imageHandle);
+			}
+		}
+		return;
+	}
+	
+	// GTK3 implementation
 	if (image != null) {
 		ImageList imageList = parent.imageList;
 		if (imageList == null) imageList = parent.imageList = new ImageList ();
@@ -1268,6 +1359,10 @@ public void setText (String string) {
 
 	if (GTK.GTK4) {
 		OS.g_menu_item_set_label(handle, buffer);
+		// Update custom widget label if it exists
+		if (labelHandle != 0 && GTK.GTK_IS_LABEL(labelHandle)) {
+			GTK.gtk_label_set_text_with_mnemonic(labelHandle, buffer);
+		}
 		MaskKeysym maskKeysym = getMaskKeysym();
 		if (maskKeysym != null) {
 			OS.g_menu_item_set_attribute(handle,
