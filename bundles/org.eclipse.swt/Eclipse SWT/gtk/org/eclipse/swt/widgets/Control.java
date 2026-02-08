@@ -3798,7 +3798,16 @@ void cairoClipRegion (long cairo) {
 	eventRegion = actualRegion;
 }
 
-
+@Override
+void snapshotToDraw(long handle, long snapshot) {
+	// Skip drawing if this is being called on fixedHandle.
+	// The actual widget handle will be drawn separately.
+	// See https://github.com/eclipse-platform/eclipse.platform.swt/issues/2812
+	if (fixedHandle != 0 && handle == fixedHandle) {
+		return;
+	}
+	super.snapshotToDraw(handle, snapshot);
+}
 
 @Override
 void gtk4_draw(long widget, long cairo, Rectangle bounds) {
