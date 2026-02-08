@@ -318,9 +318,15 @@ void createHandle(int index) {
 			byte[] idBytes = Converter.javaStringToCString(customId);
 			
 			// Set "custom" attribute on the GMenuItem model
+			// Allocate native memory for the ID string
+			long idPtr = OS.g_malloc(idBytes.length);
+			C.memmove(idPtr, idBytes, idBytes.length);
+			
 			byte[] customAttr = Converter.javaStringToCString("custom");
 			byte[] stringFormat = Converter.javaStringToCString("s");
-			OS.g_menu_item_set_attribute(handle, customAttr, stringFormat, idBytes);
+			OS.g_menu_item_set_attribute(handle, customAttr, stringFormat, idPtr);
+			
+			// Note: Don't free idPtr yet, as the menu model may still reference it
 			
 			// Create custom widget structure: Button -> Box -> [Image + Label]
 			buttonHandle = GTK.gtk_button_new();
