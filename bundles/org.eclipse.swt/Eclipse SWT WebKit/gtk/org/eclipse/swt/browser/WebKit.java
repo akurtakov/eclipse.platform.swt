@@ -662,10 +662,14 @@ public void create (Composite parent, int style) {
 	if (FirstCreate) {
 		FirstCreate = false;
 		// Register the swt:// custom protocol for BrowserFunction calls via XMLHttpRequest
-		long context = WebKitGTK.webkit_web_context_get_default();
-		WebKitGTK.webkit_web_context_register_uri_scheme(context, SWT_PROTOCOL, RequestProc.getAddress(), 0, 0);
-		long security = WebKitGTK.webkit_web_context_get_security_manager(context);
-		WebKitGTK.webkit_security_manager_register_uri_scheme_as_secure(security, SWT_PROTOCOL);
+		// GTK4 note: Custom URI scheme registration works differently in WebKitGTK 6.0
+		// TODO: Implement GTK4-compatible URI scheme registration when needed
+		if (!GTK.GTK4) {
+			long context = WebKitGTK.webkit_web_context_get_default();
+			WebKitGTK.webkit_web_context_register_uri_scheme(context, SWT_PROTOCOL, RequestProc.getAddress(), 0, 0);
+			long security = WebKitGTK.webkit_web_context_get_security_manager(context);
+			WebKitGTK.webkit_security_manager_register_uri_scheme_as_secure(security, SWT_PROTOCOL);
+		}
 	}
 
 	Composite parentShell = parent.getParent();
@@ -677,6 +681,15 @@ public void create (Composite parent, int style) {
 				parentBrowser = (Browser) children[i];
 				break;
 			}
+		}
+	}
+
+	// GTK4-specific: Ensure GDK display is available before creating WebView
+	// The WebKit web process needs access to the display to initialize properly
+	if (GTK.GTK4 && parentBrowser == null) {
+		long gdkDisplay = GDK.gdk_display_get_default();
+		if (gdkDisplay == 0) {
+			SWT.error(SWT.ERROR_NO_HANDLES, null, " [GDK display not available for WebKit web process]");
 		}
 	}
 
@@ -729,15 +742,19 @@ public void create (Composite parent, int style) {
 	// gboolean user_function (WebKitWebView *web_view,  WebKitAuthenticationRequest *request,  gpointer user_data)
 	OS.g_signal_connect (webView, WebKitGTK.authenticate, 					Proc3.getAddress (), AUTHENTICATE);
 
-	if (GTK.GTK4) {
-		// (!) Note this one's a 'NetworkSession' signal, not WebView. See:
-		// https://webkitgtk.org/reference/webkitgtk/stable/signal.NetworkSession.download-started.html
-		OS.g_signal_connect (WebKitGTK.webkit_network_session_get_default(), WebKitGTK.download_started, Proc3.getAddress (), DOWNLOAD_STARTED);
-	} else {
-		// (!) Note this one's a 'webContext' signal, not WebView. See:
+	// Connect download-started signal  
+	// Note: For GTK4, connecting to NetworkSession during widget creation can cause issues
+	// if the WebKit web process hasn't fully initialized. We defer it to avoid crashes.
+	// See: https://webkitgtk.org/reference/webkitgtk/stable/signal.NetworkSession.download-started.html
+	if (!GTK.GTK4) {
+		// GTK3: Connect immediately to WebContext
 		// https://webkitgtk.org/reference/webkit2gtk/stable/signal.WebContext.download-started.html
 		OS.g_signal_connect (WebKitGTK.webkit_web_context_get_default(), WebKitGTK.download_started, Proc3.getAddress (), DOWNLOAD_STARTED);
 	}
+	// GTK4 TODO: Implement lazy download signal connection when download API is first used
+	// This requires storing a flag and connecting the signal when:
+	// - A download is initiated programmatically, or
+	// - A DownloadListener is added to the Browser
 
 	if (GTK.GTK4) {
 		GTK.gtk_widget_set_visible(webView, true);
@@ -773,9 +790,15 @@ public void create (Composite parent, int style) {
 	OS.g_object_set (settings, WebKitGTK.javascript_can_open_windows_automatically, 1, 0);
 	OS.g_object_set (settings, WebKitGTK.enable_webgl, 1, 0);
 	OS.g_object_set (settings, WebKitGTK.enable_developer_extras, 1, 0);
-	//disable hardware acceleration due to  https://bugs.webkit.org/show_bug.cgi?id=239429#c11
-	//even evolution ended up doing the same https://gitlab.gnome.org/GNOME/evolution/-/commit/eb62ccaa28bbbca7668913ce7d8056a6d75f9b05
-	if (!GTK.GTK4) {
+	// Disable hardware acceleration due to https://bugs.webkit.org/show_bug.cgi?id=239429#c11
+	// Even evolution ended up doing the same: https://gitlab.gnome.org/GNOME/evolution/-/commit/eb62ccaa28bbbca7668913ce7d8056a6d75f9b05
+	// On GTK4, this also prevents web process crashes due to DMABUF renderer display connection issues
+	// Note: The enum values changed between WebKitGTK versions
+	// GTK3: WEBKIT_HARDWARE_ACCELERATION_POLICY_NEVER = 2
+	// GTK4: WEBKIT_HARDWARE_ACCELERATION_POLICY_NEVER = 0 (ON_DEMAND was removed)
+	if (GTK.GTK4) {
+		OS.g_object_set (settings, WebKitGTK.hardware_acceleration_policy, 0, 0);
+	} else {
 		OS.g_object_set (settings, WebKitGTK.hardware_acceleration_policy, 2, 0);
 	}
 
