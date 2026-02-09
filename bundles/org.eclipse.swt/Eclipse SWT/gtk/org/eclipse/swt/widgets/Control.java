@@ -199,7 +199,9 @@ void drawBackground (Control control, long gdkResource, long cr, int x, int y, i
 			regionRect.y = 0;
 			regionRect.width = fetchedWidth[0];
 			regionRect.height = fetchedHeight[0];
-			region = Cairo.cairo_region_create_rectangle(regionRect);
+			if (regionRect.isValid()) {
+				region = Cairo.cairo_region_create_rectangle(regionRect);
+			}
 		}
 	} else {
 		cairo = cr != 0 ? cr : GDK.gdk_cairo_create(gdkResource);
@@ -3781,6 +3783,10 @@ void cairoClipRegion (long cairo) {
 	 */
 	cairo_rectangle_int_t cairoRect = new cairo_rectangle_int_t();
 	cairoRect.convertFromGdkRectangle(rect);
+	if (!cairoRect.isValid()) {
+		drawRegion = false;
+		return;
+	}
 	long actualRegion = Cairo.cairo_region_create_rectangle(cairoRect);
 	Cairo.cairo_region_subtract(actualRegion, regionHandle);
 	// Draw the Shell bg using cairo, only if it's a different color

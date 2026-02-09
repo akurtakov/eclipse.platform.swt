@@ -44,6 +44,17 @@ public class cairo_rectangle_int_t {
 	}
 
 	/**
+	 * Checks if the rectangle is valid for use with Cairo/Pixman region functions.
+	 * A rectangle is considered valid if both width and height are greater than zero.
+	 * Pixman will emit a warning if an invalid rectangle is passed to region functions.
+	 *
+	 * @return true if the rectangle has positive width and height, false otherwise
+	 */
+	public boolean isValid() {
+		return width > 0 && height > 0;
+	}
+
+	/**
 	 * Returns a string containing a concise, human-readable
 	 * description of the receiver.
 	 *
