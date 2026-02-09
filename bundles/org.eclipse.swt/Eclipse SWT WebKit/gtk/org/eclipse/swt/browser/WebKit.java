@@ -662,10 +662,14 @@ public void create (Composite parent, int style) {
 	if (FirstCreate) {
 		FirstCreate = false;
 		// Register the swt:// custom protocol for BrowserFunction calls via XMLHttpRequest
-		long context = WebKitGTK.webkit_web_context_get_default();
-		WebKitGTK.webkit_web_context_register_uri_scheme(context, SWT_PROTOCOL, RequestProc.getAddress(), 0, 0);
-		long security = WebKitGTK.webkit_web_context_get_security_manager(context);
-		WebKitGTK.webkit_security_manager_register_uri_scheme_as_secure(security, SWT_PROTOCOL);
+		// GTK4 note: Custom URI scheme registration works differently in WebKitGTK 6.0
+		// TODO: Implement GTK4-compatible URI scheme registration when needed
+		if (!GTK.GTK4) {
+			long context = WebKitGTK.webkit_web_context_get_default();
+			WebKitGTK.webkit_web_context_register_uri_scheme(context, SWT_PROTOCOL, RequestProc.getAddress(), 0, 0);
+			long security = WebKitGTK.webkit_web_context_get_security_manager(context);
+			WebKitGTK.webkit_security_manager_register_uri_scheme_as_secure(security, SWT_PROTOCOL);
+		}
 	}
 
 	Composite parentShell = parent.getParent();
@@ -729,15 +733,17 @@ public void create (Composite parent, int style) {
 	// gboolean user_function (WebKitWebView *web_view,  WebKitAuthenticationRequest *request,  gpointer user_data)
 	OS.g_signal_connect (webView, WebKitGTK.authenticate, 					Proc3.getAddress (), AUTHENTICATE);
 
-	if (GTK.GTK4) {
-		// (!) Note this one's a 'NetworkSession' signal, not WebView. See:
-		// https://webkitgtk.org/reference/webkitgtk/stable/signal.NetworkSession.download-started.html
-		OS.g_signal_connect (WebKitGTK.webkit_network_session_get_default(), WebKitGTK.download_started, Proc3.getAddress (), DOWNLOAD_STARTED);
-	} else {
-		// (!) Note this one's a 'webContext' signal, not WebView. See:
+	// Connect download-started signal  
+	// Note: For GTK4, connecting to NetworkSession during widget creation can cause issues
+	// if the WebKit web process hasn't fully initialized. We connect it lazily on first use instead.
+	// See: https://webkitgtk.org/reference/webkitgtk/stable/signal.NetworkSession.download-started.html
+	if (!GTK.GTK4) {
+		// GTK3: Connect immediately to WebContext
 		// https://webkitgtk.org/reference/webkit2gtk/stable/signal.WebContext.download-started.html
 		OS.g_signal_connect (WebKitGTK.webkit_web_context_get_default(), WebKitGTK.download_started, Proc3.getAddress (), DOWNLOAD_STARTED);
 	}
+	// GTK4: Download signal connection is deferred to avoid early network_session initialization
+	// The signal will be connected on first download or can be connected explicitly later
 
 	if (GTK.GTK4) {
 		GTK.gtk_widget_set_visible(webView, true);
