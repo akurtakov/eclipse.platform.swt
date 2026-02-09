@@ -311,8 +311,11 @@ void createHandle(int index) {
 		 * 1. Setting a "custom" attribute on the GMenuItem model
 		 * 2. Creating a custom widget (button with box containing image+label)
 		 * 3. Registering the custom widget with the parent menu's PopoverMenu
+		 * 
+		 * Note: This only works for POP_UP menus, as BAR and DROP_DOWN menus
+		 * don't have a GtkPopoverMenu widget that we can register with.
 		 */
-		if ((style & SWT.SEPARATOR) == 0) {
+		if ((style & SWT.SEPARATOR) == 0 && (parent.style & SWT.POP_UP) != 0) {
 			// Create unique ID for this menu item's custom widget
 			customId = "swt-item-" + this.hashCode();
 			byte[] idBytes = Converter.javaStringToCString(customId);
@@ -357,7 +360,7 @@ void createHandle(int index) {
 			GTK.gtk_widget_add_css_class(buttonHandle, flatClass);
 			
 			// Register custom widget with parent PopoverMenu
-			// Note: The parent menu must be a PopoverMenu for this to work
+			// Only POP_UP menus have a GtkPopoverMenu widget we can register with
 			if (parent.handle != 0) {
 				GTK4.gtk_popover_menu_add_child(parent.handle, buttonHandle, idBytes);
 			}
