@@ -227,6 +227,7 @@ void cairoClipRegion (long cairo) {
 	GDK.gdk_cairo_get_clip_rectangle (cairo, rect);
 	cairo_rectangle_int_t cairoRect = new cairo_rectangle_int_t ();
 	cairoRect.convertFromGdkRectangle(rect);
+	if (!cairoRect.isValid()) return;
 	long regionHandle = data.regionSet;
 	long actualRegion = Cairo.cairo_region_create_rectangle(cairoRect);
 	Cairo.cairo_region_subtract(actualRegion, regionHandle);
@@ -560,6 +561,7 @@ public void copyArea(int srcX, int srcY, int width, int height, int destX, int d
 			srcRect.y = srcY;
 			srcRect.width = width;
 			srcRect.height = height;
+			if (!srcRect.isValid()) return;
 			long invalidateRegion = Cairo.cairo_region_create_rectangle (srcRect);
 			if (GTK.GTK4) {
 				/* TODO: GTK4 no ability to invalidate surfaces, may need to keep track of

@@ -382,6 +382,11 @@ public void scroll (int destX, int destY, int x, int y, int width, int height, b
 	}
 	srcRect.width = width;
 	srcRect.height = height;
+	if (!srcRect.isValid()) {
+		Cairo.cairo_region_destroy(visibleRegion);
+		if (isFocus) caret.setFocus();
+		return;
+	}
 	long copyRegion = Cairo.cairo_region_create_rectangle (srcRect);
 	Cairo.cairo_region_intersect(copyRegion, visibleRegion);
 	long invalidateRegion = Cairo.cairo_region_create_rectangle (srcRect);
