@@ -684,6 +684,15 @@ public void create (Composite parent, int style) {
 		}
 	}
 
+	// GTK4-specific: Ensure GDK display is available before creating WebView
+	// The WebKit web process needs access to the display to initialize properly
+	if (GTK.GTK4 && parentBrowser == null) {
+		long gdkDisplay = GDK.gdk_display_get_default();
+		if (gdkDisplay == 0) {
+			SWT.error(SWT.ERROR_NO_HANDLES, null, " [GDK display not available for WebKit web process]");
+		}
+	}
+
 	if (parentBrowser == null) {
 		webView = WebKitGTK.webkit_web_view_new();
 	} else {
