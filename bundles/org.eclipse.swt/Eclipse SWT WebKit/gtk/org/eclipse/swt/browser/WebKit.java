@@ -793,7 +793,14 @@ public void create (Composite parent, int style) {
 	// Disable hardware acceleration due to https://bugs.webkit.org/show_bug.cgi?id=239429#c11
 	// Even evolution ended up doing the same: https://gitlab.gnome.org/GNOME/evolution/-/commit/eb62ccaa28bbbca7668913ce7d8056a6d75f9b05
 	// On GTK4, this also prevents web process crashes due to DMABUF renderer display connection issues
-	OS.g_object_set (settings, WebKitGTK.hardware_acceleration_policy, 2, 0);
+	// Note: The enum values changed between WebKitGTK versions
+	// GTK3: WEBKIT_HARDWARE_ACCELERATION_POLICY_NEVER = 2
+	// GTK4: WEBKIT_HARDWARE_ACCELERATION_POLICY_NEVER = 0 (ON_DEMAND was removed)
+	if (GTK.GTK4) {
+		OS.g_object_set (settings, WebKitGTK.hardware_acceleration_policy, 0, 0);
+	} else {
+		OS.g_object_set (settings, WebKitGTK.hardware_acceleration_policy, 2, 0);
+	}
 
 	OS.g_object_set (settings, WebKitGTK.default_charset, utfBytes, 0);
 	if (WebKitGTK.webkit_get_minor_version() >= 14) {
