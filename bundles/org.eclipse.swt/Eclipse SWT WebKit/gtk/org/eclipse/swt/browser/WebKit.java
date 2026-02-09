@@ -744,15 +744,17 @@ public void create (Composite parent, int style) {
 
 	// Connect download-started signal  
 	// Note: For GTK4, connecting to NetworkSession during widget creation can cause issues
-	// if the WebKit web process hasn't fully initialized. We connect it lazily on first use instead.
+	// if the WebKit web process hasn't fully initialized. We defer it to avoid crashes.
 	// See: https://webkitgtk.org/reference/webkitgtk/stable/signal.NetworkSession.download-started.html
 	if (!GTK.GTK4) {
 		// GTK3: Connect immediately to WebContext
 		// https://webkitgtk.org/reference/webkit2gtk/stable/signal.WebContext.download-started.html
 		OS.g_signal_connect (WebKitGTK.webkit_web_context_get_default(), WebKitGTK.download_started, Proc3.getAddress (), DOWNLOAD_STARTED);
 	}
-	// GTK4: Download signal connection is deferred to avoid early network_session initialization
-	// The signal will be connected on first download or can be connected explicitly later
+	// GTK4 TODO: Implement lazy download signal connection when download API is first used
+	// This requires storing a flag and connecting the signal when:
+	// - A download is initiated programmatically, or
+	// - A DownloadListener is added to the Browser
 
 	if (GTK.GTK4) {
 		GTK.gtk_widget_set_visible(webView, true);
