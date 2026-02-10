@@ -877,7 +877,7 @@ public void test_setAlignment() {
 }
 
 @Test
-public void test_zoomChangedListener() {
+public void test_zoomChangedListener() throws InterruptedException {
 	// Test that CCombo properly receives and handles ZoomChanged events
 	final boolean[] listenerCalled = new boolean[1];
 	
@@ -907,7 +907,7 @@ public void test_zoomChangedListener() {
 }
 
 @Test
-public void test_zoomChangedListenerNotDisposed() {
+public void test_zoomChangedListenerNotDisposed() throws InterruptedException {
 	// Test that async listener registration safely handles disposed widgets
 	// No exceptions should be thrown when processing async events for disposed widgets
 	CCombo testCombo = new CCombo(shell, SWT.BORDER);
