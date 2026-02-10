@@ -878,8 +878,7 @@ public void test_setAlignment() {
 
 @Test
 public void test_zoomChangedListener() {
-	// Test that CCombo handles ZoomChanged events properly
-	// The listener should be registered asynchronously to avoid race conditions
+	// Test that CCombo properly receives and handles ZoomChanged events
 	final boolean[] listenerCalled = new boolean[1];
 	
 	// Create a new CCombo
@@ -909,15 +908,22 @@ public void test_zoomChangedListener() {
 
 @Test
 public void test_zoomChangedListenerNotDisposed() {
-	// Test that ZoomChanged listener is not added if CCombo is disposed before async exec
+	// Test that async listener registration safely handles disposed widgets
+	// No exceptions should be thrown when processing async events for disposed widgets
 	CCombo testCombo = new CCombo(shell, SWT.BORDER);
+	final boolean[] exceptionThrown = new boolean[1];
+	
 	testCombo.dispose();
 	
-	// Process async events
-	SwtTestUtil.processEvents(100, () -> false);
+	// Process async events - this should not throw an exception
+	try {
+		SwtTestUtil.processEvents(100, () -> false);
+	} catch (Exception e) {
+		exceptionThrown[0] = true;
+	}
 	
-	// If the widget is disposed, the async exec should not add the listener
-	// This test verifies that no exception is thrown and disposal check works
+	// Verify no exception was thrown and widget is properly disposed
+	assertFalse(exceptionThrown[0], "No exception should be thrown for disposed widget");
 	assertTrue(testCombo.isDisposed(), "CCombo should be disposed");
 }
 }
