@@ -472,7 +472,8 @@ void createHandle(int index) {
  * after insertion into a GMenu, the original handle becomes consumed
  * and cannot be reused for subsequent insertions.
  * 
- * This method should only be called in GTK4 contexts.
+ * Note: All callers must ensure they are in a GTK4 context before calling this method.
+ * This method is only called from GTK4-specific code paths.
  * 
  * @return the new GMenuItem handle
  */
