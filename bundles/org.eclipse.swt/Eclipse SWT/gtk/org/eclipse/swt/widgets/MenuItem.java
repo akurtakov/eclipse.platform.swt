@@ -472,11 +472,11 @@ void createHandle(int index) {
  * after insertion into a GMenu, the original handle becomes consumed
  * and cannot be reused for subsequent insertions.
  * 
+ * This method should only be called in GTK4 contexts.
+ * 
  * @return the new GMenuItem handle
  */
 long recreateGMenuItemHandle() {
-	if (!GTK.GTK4) return handle;
-	
 	long oldHandle = handle;
 	int bits = SWT.CHECK | SWT.RADIO | SWT.PUSH | SWT.SEPARATOR | SWT.CASCADE;
 	
@@ -1221,7 +1221,7 @@ public void setMenu (Menu menu) {
 		this.menu = menu;
 		if (menu != null) {
 			menu.cascade = this;
-		} else if (oldMenu != null) {
+		} else {
 			oldMenu.cascade = null;
 		}
 
