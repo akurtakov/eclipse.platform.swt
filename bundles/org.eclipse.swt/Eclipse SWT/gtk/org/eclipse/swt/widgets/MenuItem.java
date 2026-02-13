@@ -492,20 +492,12 @@ long recreateGMenuItemHandle() {
 			handle = OS.g_menu_item_new(null, Converter.javaStringToCString(actionName));
 			break;
 		case SWT.CASCADE:
-			// Get the current label text
-			String labelText = (text != null && text.length() > 0) ? text : "";
-			int index = labelText.indexOf('\t');
-			if (index != -1) {
-				labelText = labelText.substring(0, index);
-			}
-			char[] chars = fixMnemonic(labelText);
-			byte[] buffer = Converter.wcsToMbcs(chars, true);
-			
 			// For CASCADE items, we need to preserve the submenu
+			byte[] labelBuffer = getProcessedLabelBuffer();
 			if (menu != null) {
-				handle = OS.g_menu_item_new_submenu(buffer, menu.modelHandle);
+				handle = OS.g_menu_item_new_submenu(labelBuffer, menu.modelHandle);
 			} else {
-				handle = OS.g_menu_item_new_submenu(buffer, modelHandle);
+				handle = OS.g_menu_item_new_submenu(labelBuffer, modelHandle);
 			}
 			break;
 		case SWT.PUSH:
@@ -519,14 +511,8 @@ long recreateGMenuItemHandle() {
 	if ((style & SWT.SEPARATOR) == 0 && (style & SWT.CASCADE) == 0) {
 		// Set the label if we have text
 		if (text != null && text.length() > 0) {
-			String labelText = text;
-			int index = labelText.indexOf('\t');
-			if (index != -1) {
-				labelText = labelText.substring(0, index);
-			}
-			char[] chars = fixMnemonic(labelText);
-			byte[] buffer = Converter.wcsToMbcs(chars, true);
-			OS.g_menu_item_set_label(handle, buffer);
+			byte[] labelBuffer = getProcessedLabelBuffer();
+			OS.g_menu_item_set_label(handle, labelBuffer);
 		}
 		
 		// Set the accelerator attribute if present
@@ -546,6 +532,22 @@ long recreateGMenuItemHandle() {
 	}
 	
 	return handle;
+}
+
+/**
+ * Processes the menu item label text into a byte buffer suitable for GTK.
+ * Removes accelerator text (after tab) and applies mnemonic processing.
+ * 
+ * @return processed label as a byte buffer, or empty buffer if no text
+ */
+private byte[] getProcessedLabelBuffer() {
+	String labelText = (text != null && text.length() > 0) ? text : "";
+	int index = labelText.indexOf('\t');
+	if (index != -1) {
+		labelText = labelText.substring(0, index);
+	}
+	char[] chars = fixMnemonic(labelText);
+	return Converter.wcsToMbcs(chars, true);
 }
 
 void fixMenus (Decorations newParent) {
