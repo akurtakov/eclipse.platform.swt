@@ -322,7 +322,9 @@ void createHandle(int index) {
 				section.sectionItems.add(removedItem);
 
 				OS.g_menu_remove(selectedSection.getSectionHandle(), sectionRelativeIndex);
-				OS.g_menu_insert_item(modelHandle, section.sectionItems.indexOf(removedItem), removedItem.handle);
+				// Recreate the GMenuItem handle to avoid reusing a stale/consumed handle
+				long newHandle = removedItem.recreateGMenuItemHandle();
+				OS.g_menu_insert_item(modelHandle, section.sectionItems.indexOf(removedItem), newHandle);
 				removedItem.section = section;
 			}
 
@@ -462,6 +464,87 @@ void createHandle(int index) {
 		if (!enabled) GTK.gtk_widget_set_sensitive (parentHandle, false);
 		gtk_widget_show (handle);
 	}
+}
+
+/**
+ * Recreates the GMenuItem handle with current properties.
+ * This is necessary in GTK4 because GMenuItem is a transfer object -
+ * after insertion into a GMenu, the original handle becomes consumed
+ * and cannot be reused for subsequent insertions.
+ * 
+ * @return the new GMenuItem handle
+ */
+long recreateGMenuItemHandle() {
+	if (!GTK.GTK4) return handle;
+	
+	long oldHandle = handle;
+	int bits = SWT.CHECK | SWT.RADIO | SWT.PUSH | SWT.SEPARATOR | SWT.CASCADE;
+	
+	// Create a new GMenuItem based on the item type
+	switch (style & bits) {
+		case SWT.SEPARATOR:
+			handle = OS.g_menu_item_new_section(null, modelHandle);
+			break;
+		case SWT.RADIO:
+			handle = OS.g_menu_item_new(null, Converter.javaStringToCString(actionName));
+			break;
+		case SWT.CHECK:
+			handle = OS.g_menu_item_new(null, Converter.javaStringToCString(actionName));
+			break;
+		case SWT.CASCADE:
+			// Get the current label text
+			String labelText = (text != null && text.length() > 0) ? text : "";
+			int index = labelText.indexOf('\t');
+			if (index != -1) {
+				labelText = labelText.substring(0, index);
+			}
+			char[] chars = fixMnemonic(labelText);
+			byte[] buffer = Converter.wcsToMbcs(chars, true);
+			
+			// For CASCADE items, we need to preserve the submenu
+			if (menu != null) {
+				handle = OS.g_menu_item_new_submenu(buffer, menu.modelHandle);
+			} else {
+				handle = OS.g_menu_item_new_submenu(buffer, modelHandle);
+			}
+			break;
+		case SWT.PUSH:
+		default:
+			handle = OS.g_menu_item_new(null, Converter.javaStringToCString(actionName));
+			break;
+	}
+	
+	// For non-separator items, restore label and accelerator attributes
+	if ((style & SWT.SEPARATOR) == 0) {
+		// Set the label if we have text
+		if (text != null && text.length() > 0) {
+			String labelText = text;
+			int index = labelText.indexOf('\t');
+			if (index != -1) {
+				labelText = labelText.substring(0, index);
+			}
+			char[] chars = fixMnemonic(labelText);
+			byte[] buffer = Converter.wcsToMbcs(chars, true);
+			OS.g_menu_item_set_label(handle, buffer);
+		}
+		
+		// Set the accelerator attribute if present
+		MaskKeysym maskKeysym = getMaskKeysym();
+		if (maskKeysym != null) {
+			OS.g_menu_item_set_attribute(handle,
+					Converter.javaStringToCString("accel"),
+					Converter.javaStringToCString("s"),
+					GTK.gtk_accelerator_name(maskKeysym.keysym, maskKeysym.mask)
+				);
+		}
+	}
+	
+	// Unref the old handle
+	if (oldHandle != 0) {
+		OS.g_object_unref(oldHandle);
+	}
+	
+	return handle;
 }
 
 void fixMenus (Decorations newParent) {
@@ -762,7 +845,9 @@ void destroyWidget() {
 			aboveSection.sectionItems.addAll(section.sectionItems);
 
 			for (MenuItem item : section.sectionItems) {
-				OS.g_menu_insert_item(aboveSection.getSectionHandle(), aboveSection.sectionItems.indexOf(item), item.handle);
+				// Recreate the GMenuItem handle to avoid reusing a stale/consumed handle
+				long newHandle = item.recreateGMenuItemHandle();
+				OS.g_menu_insert_item(aboveSection.getSectionHandle(), aboveSection.sectionItems.indexOf(item), newHandle);
 			}
 
 			OS.g_menu_remove(parent.modelHandle, parent.sections.indexOf(section));
@@ -1135,14 +1220,15 @@ public void setMenu (Menu menu) {
 		this.menu = menu;
 		if (menu != null) {
 			menu.cascade = this;
-			OS.g_menu_item_set_submenu(handle, menu.modelHandle);
-		} else {
+		} else if (oldMenu != null) {
 			oldMenu.cascade = null;
-			OS.g_menu_item_set_submenu(handle, 0);
 		}
 
-		OS.g_menu_remove(section.getSectionHandle(), section.getItemPosition(this));
-		OS.g_menu_insert_item(section.getSectionHandle(), section.getItemPosition(this), handle);
+		// Recreate the GMenuItem handle to avoid reusing a stale/consumed handle
+		int position = section.getItemPosition(this);
+		OS.g_menu_remove(section.getSectionHandle(), position);
+		recreateGMenuItemHandle();
+		OS.g_menu_insert_item(section.getSectionHandle(), position, handle);
 	} else {
 		long accelGroup = getAccelGroup ();
 		if (accelGroup != 0) removeAccelerators (accelGroup);
@@ -1267,17 +1353,11 @@ public void setText (String string) {
 	byte[] buffer = Converter.wcsToMbcs(chars, true);
 
 	if (GTK.GTK4) {
-		OS.g_menu_item_set_label(handle, buffer);
-		MaskKeysym maskKeysym = getMaskKeysym();
-		if (maskKeysym != null) {
-			OS.g_menu_item_set_attribute(handle,
-					Converter.javaStringToCString("accel"),
-					Converter.javaStringToCString("s"),
-					GTK.gtk_accelerator_name(maskKeysym.keysym, maskKeysym.mask)
-				);
-		}
-		OS.g_menu_remove(section.getSectionHandle(), section.getItemPosition(this));
-		OS.g_menu_insert_item(section.getSectionHandle(), section.getItemPosition(this), handle);
+		// Recreate the GMenuItem handle to avoid reusing a stale/consumed handle
+		int position = section.getItemPosition(this);
+		OS.g_menu_remove(section.getSectionHandle(), position);
+		recreateGMenuItemHandle();
+		OS.g_menu_insert_item(section.getSectionHandle(), position, handle);
 	} else {
 		if (labelHandle != 0 && GTK.GTK_IS_LABEL (labelHandle)) {
 			GTK.gtk_label_set_text_with_mnemonic (labelHandle, buffer);
