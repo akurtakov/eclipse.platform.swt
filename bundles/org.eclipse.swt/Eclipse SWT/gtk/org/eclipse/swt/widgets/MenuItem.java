@@ -514,8 +514,9 @@ long recreateGMenuItemHandle() {
 			break;
 	}
 	
-	// For non-separator items, restore label and accelerator attributes
-	if ((style & SWT.SEPARATOR) == 0) {
+	// For non-separator and non-cascade items, restore label and accelerator attributes
+	// (CASCADE items already have their label set during creation)
+	if ((style & SWT.SEPARATOR) == 0 && (style & SWT.CASCADE) == 0) {
 		// Set the label if we have text
 		if (text != null && text.length() > 0) {
 			String labelText = text;
