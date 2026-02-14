@@ -351,7 +351,7 @@ public void test_CascadeMenuShowEvent() {
 	
 	// Verify that the sub-menu received SWT.Show event
 	// In GTK4, this is critical for lazy menu population
-	// For GTK3, this test verifies the behavior doesn't break anything
+	// For GTK3, this test verifies the behavior does not break anything
 	assertTrue(subMenuShown[0], "CASCADE sub-menu should receive SWT.Show event when parent menu is shown");
 	
 	dropDownMenu.dispose();
