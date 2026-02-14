@@ -482,7 +482,7 @@ long recreateGMenuItemHandle() {
 	int bits = SWT.CHECK | SWT.RADIO | SWT.PUSH | SWT.SEPARATOR | SWT.CASCADE;
 	
 	// Deregister the old handle from the widget table
-	if (oldHandle != 0 && (state & HANDLE) != 0) {
+	if (oldHandle != 0 && (state & HANDLE) != 0 && display != null) {
 		display.removeWidget(oldHandle);
 	}
 	
@@ -513,7 +513,7 @@ long recreateGMenuItemHandle() {
 	}
 	
 	// Register the new handle in the widget table
-	if (handle != 0 && (state & HANDLE) != 0) {
+	if (handle != 0 && (state & HANDLE) != 0 && display != null) {
 		display.addWidget(handle, this);
 	}
 	
