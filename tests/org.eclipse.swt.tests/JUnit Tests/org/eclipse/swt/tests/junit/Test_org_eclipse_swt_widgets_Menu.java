@@ -349,9 +349,10 @@ public void test_CascadeMenuShowEvent() {
 	// Trigger show event on the bar menu (which should cascade to sub-menus in GTK4)
 	barMenu.notifyListeners(SWT.Show, new Event());
 	
-	// In GTK4, the sub-menu should have received SWT.Show
-	// For other platforms or GTK3, this test still passes as it doesn't hurt
-	// Note: This test uses notifyListeners which directly calls gtk_show handler
+	// Verify that the sub-menu received SWT.Show event
+	// In GTK4, this is critical for lazy menu population
+	// For GTK3, this test verifies the behavior doesn't break anything
+	assertTrue(subMenuShown[0], "CASCADE sub-menu should receive SWT.Show event when parent menu is shown");
 	
 	dropDownMenu.dispose();
 	cascadeItem.dispose();
