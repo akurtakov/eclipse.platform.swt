@@ -852,6 +852,24 @@ long gtk_show (long widget) {
 		return 0;
 	}
 	sendEvent (SWT.Show);
+	
+	// GTK4: Manually trigger SWT.Show for CASCADE sub-menus (DROP_DOWN menus)
+	// In GTK4, DROP_DOWN menus are GMenuModel objects, not widgets,
+	// so they don't receive show signals like they did in GTK3.
+	// This ensures lazy menu population works correctly.
+	if (GTK.GTK4) {
+		MenuItem[] items = getItems();
+		for (int i = 0; i < items.length; i++) {
+			MenuItem item = items[i];
+			if ((item.style & SWT.CASCADE) != 0) {
+				Menu subMenu = item.getMenu();
+				if (subMenu != null && !subMenu.isDisposed()) {
+					subMenu.sendEvent(SWT.Show);
+				}
+			}
+		}
+	}
+	
 	if (OS.ubuntu_menu_proxy_get() != 0) {
 		MenuItem[] items = getItems();
 		for (int i=0; i<items.length; i++) {
