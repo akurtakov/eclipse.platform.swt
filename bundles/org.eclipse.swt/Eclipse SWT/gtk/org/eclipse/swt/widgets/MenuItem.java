@@ -481,6 +481,11 @@ long recreateGMenuItemHandle() {
 	long oldHandle = handle;
 	int bits = SWT.CHECK | SWT.RADIO | SWT.PUSH | SWT.SEPARATOR | SWT.CASCADE;
 	
+	// Deregister the old handle from the widget table
+	if (oldHandle != 0 && (state & HANDLE) != 0) {
+		display.removeWidget(oldHandle);
+	}
+	
 	// Create a new GMenuItem based on the item type
 	switch (style & bits) {
 		case SWT.SEPARATOR:
@@ -507,6 +512,11 @@ long recreateGMenuItemHandle() {
 			break;
 	}
 	
+	// Register the new handle in the widget table
+	if (handle != 0 && (state & HANDLE) != 0) {
+		display.addWidget(handle, this);
+	}
+	
 	// For non-separator and non-cascade items, restore label and accelerator attributes
 	// (CASCADE items already have their label set during creation)
 	if ((style & SWT.SEPARATOR) == 0 && (style & SWT.CASCADE) == 0) {
@@ -527,10 +537,9 @@ long recreateGMenuItemHandle() {
 		}
 	}
 	
-	// Unref the old handle
-	if (oldHandle != 0) {
-		OS.g_object_unref(oldHandle);
-	}
+	// Note: Do NOT unref the old handle here. In GTK4, GMenuItem is a transfer object.
+	// When inserted into a GMenu, the menu takes ownership and will free it automatically.
+	// Manually unreffing would cause double-free errors and widget registry corruption.
 	
 	return handle;
 }
