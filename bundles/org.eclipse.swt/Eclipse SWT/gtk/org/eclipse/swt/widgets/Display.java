@@ -3609,6 +3609,7 @@ void initializeCallbacks () {
 
 	closuresProc [Widget.NOTIFY_STATE] = notifyProc;
 	closuresProc [Widget.DPI_CHANGED] = notifyProc;
+	closuresProc [Widget.NOTIFY_VISIBLE] = notifyProc;
 
 	closuresProc [Widget.ACTIVATE] = windowProc2;
 	closuresProc [Widget.ACTIVATE_INVERSE] = windowProc2;
