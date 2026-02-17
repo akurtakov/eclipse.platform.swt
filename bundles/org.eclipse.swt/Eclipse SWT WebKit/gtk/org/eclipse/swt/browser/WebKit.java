@@ -750,6 +750,15 @@ public void create (Composite parent, int style) {
 	// Webview 'title' property
 	OS.g_signal_connect (webView, WebKitGTK.notify_title, 						Proc3.getAddress (), NOTIFY_TITLE);
 
+	/*
+	 * WebKitGTK 6.0 (GTK4) compatibility: DOM event APIs removed
+	 * 
+	 * These GDK event signals use webkit_dom_* functions which were removed in WebKitGTK 6.0.
+	 * They are only connected on GTK3 where WebKitGTK 4.x (with DOM APIs) is used.
+	 * 
+	 * On GTK4, alternative event handling mechanisms are used instead.
+	 * See JSDOMEventProc and handleDOMEvent for the GTK3-specific implementation.
+	 */
 	if (!GTK.GTK4) {
 		OS.g_signal_connect (webView, OS.button_press_event, JSDOMEventProc.getAddress (), WIDGET_EVENT);
 		OS.g_signal_connect (webView, OS.button_release_event, JSDOMEventProc.getAddress (), WIDGET_EVENT);
@@ -1484,9 +1493,16 @@ public String getUrl () {
 
 boolean handleDOMEvent (long event, int type) {
 	/*
-	* This method handles JS events that are received through the DOM
-	* listener API that was introduced in WebKitGTK 1.4.
-	*/
+	 * This method handles JS events that are received through the DOM
+	 * listener API that was introduced in WebKitGTK 1.4.
+	 * 
+	 * NOTE: This method is ONLY used on GTK3 with WebKitGTK 4.x.
+	 * It is NOT called on GTK4/WebKitGTK 6.0 because:
+	 * - DOM event signals (button_press_event, key_press_event, etc.) are only
+	 *   connected when !GTK.GTK4 (see lines 753-768 in create() method)
+	 * - WebKitGTK 6.0 removed all DOM APIs used here (webkit_dom_*)
+	 * - On GTK4, GDK events are handled directly via JSDOMEventProc instead
+	 */
 	String typeString = null;
 	boolean isMouseEvent = false;
 	switch (type) {

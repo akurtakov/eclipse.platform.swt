@@ -274,6 +274,18 @@ public static final native long webkit_web_context_get_type();
 public static final native long webkit_credential_new(byte[] username, byte[] password, int persistence);
 
 
+/* --------------------- DOM API functions (GTK3/WebKitGTK 4.x only) --------------------- */
+/*
+ * NOTE: These DOM API functions were removed in WebKitGTK 6.0 (used with GTK4).
+ * They are only available in WebKitGTK 4.x (used with GTK3).
+ * 
+ * These functions are NOT called when GTK4 is active - see WebKit.java where
+ * DOM event handlers are only connected when !GTK.GTK4 (lines 753-768).
+ * 
+ * On GTK4, event handling uses GDK events directly instead of DOM events.
+ * See JSDOMEventProc in WebKit.java for the GTK3 event handling path.
+ */
+
 /** @method flags=dynamic */
 public static final native int webkit_dom_event_target_add_event_listener(long target, byte[] name, long handler, int bubble, long userData);
 
