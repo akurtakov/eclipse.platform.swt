@@ -663,6 +663,13 @@ public void create (Composite parent, int style) {
 		FirstCreate = false;
 		// Register the swt:// custom protocol for BrowserFunction calls via XMLHttpRequest
 		long context = WebKitGTK.webkit_web_context_get_default();
+		// Disable the bubblewrap sandbox on GTK4 to prevent crashes in complex
+		// process trees like Eclipse. The sandbox restricts access to /proc and
+		// display sockets which the WebKit web process needs.
+		// See https://github.com/akurtakov/eclipse.platform.swt/issues/85
+		if (GTK.GTK4) {
+			WebKitGTK.webkit_web_context_set_sandbox_enabled(context, false);
+		}
 		WebKitGTK.webkit_web_context_register_uri_scheme(context, SWT_PROTOCOL, RequestProc.getAddress(), 0, 0);
 		long security = WebKitGTK.webkit_web_context_get_security_manager(context);
 		WebKitGTK.webkit_security_manager_register_uri_scheme_as_secure(security, SWT_PROTOCOL);
