@@ -862,6 +862,33 @@ long gtk_show (long widget) {
 	return 0;
 }
 
+@Override
+long notifyProc (long object, long arg0, long user_data) {
+	switch ((int)user_data) {
+		case NOTIFY_VISIBLE:
+			// GTK4: When a BAR or POP_UP menu becomes visible,
+			// fire SWT.Show on all CASCADE sub-menus to enable lazy population
+			if (GTK.GTK4 && (style & SWT.DROP_DOWN) == 0) {
+				// Check if the menu is becoming visible
+				boolean visible = GTK.gtk_widget_get_visible(handle);
+				if (visible) {
+					MenuItem[] items = getItems();
+					for (int i = 0; i < items.length; i++) {
+						MenuItem item = items[i];
+						if ((item.style & SWT.CASCADE) != 0) {
+							Menu subMenu = item.getMenu();
+							if (subMenu != null && !subMenu.isDisposed()) {
+								subMenu.sendEvent(SWT.Show);
+							}
+						}
+					}
+				}
+			}
+			return 0;
+	}
+	return super.notifyProc(object, arg0, user_data);
+}
+
 
 @Override
 long gtk3_show_help (long widget, long helpType) {
@@ -911,6 +938,9 @@ void hookEvents() {
 		if ((style & SWT.DROP_DOWN) == 0) {
 			OS.g_signal_connect_closure_by_id(handle, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
 			OS.g_signal_connect_closure_by_id(handle, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+			
+			// Hook notify::visible to fire SWT.Show on CASCADE sub-menus when parent becomes visible
+			OS.g_signal_connect(handle, OS.notify_visible, display.notifyProc, NOTIFY_VISIBLE);
 		}
 
 	} else {

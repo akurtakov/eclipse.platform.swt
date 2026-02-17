@@ -466,6 +466,7 @@ public class OS extends C {
 	public static final byte[] notify_maximized = ascii("notify::maximized");
 	public static final byte[] notify_is_active = ascii("notify::is-active");
 	public static final byte[] notify_theme_change = ascii("notify::gtk-application-prefer-dark-theme");
+	public static final byte[] notify_visible = ascii("notify::visible");
 	public static final byte[] response = ascii("response");
 	public static final byte[] compute_size = ascii("compute-size");
 
