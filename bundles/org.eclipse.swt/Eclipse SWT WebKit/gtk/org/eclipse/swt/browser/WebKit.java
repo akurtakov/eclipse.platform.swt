@@ -666,6 +666,8 @@ public void create (Composite parent, int style) {
 		// The webkit_web_context_get_default() call triggers web process spawn which fails
 		// when the display is not yet accessible (Eclipse environment vs standalone snippets)
 		// Custom URI scheme registration also uses different API in WebKitGTK 6.0
+		// TODO: Implement GTK4-compatible custom URI scheme registration for BrowserFunction support
+		// See: https://webkitgtk.org/reference/webkitgtk/stable/class.WebContext.html
 		if (!GTK.GTK4) {
 			long context = WebKitGTK.webkit_web_context_get_default();
 			WebKitGTK.webkit_web_context_register_uri_scheme(context, SWT_PROTOCOL, RequestProc.getAddress(), 0, 0);
