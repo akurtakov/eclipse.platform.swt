@@ -273,6 +273,18 @@ class WebKit extends WebBrowser {
 			}
 			ignoreTls = "true".equals(System.getProperty("org.eclipse.swt.internal.webkitgtk.ignoretlserrors"));
 			disableBrowserSearchGlobally = "true".equals(System.getProperty("org.eclipse.swt.internal.webkitgtk.disableBrowserSearch"));
+			
+			// GTK4/WebKitGTK 6.0 Note: If experiencing web process crashes with "Failed to open display" errors,
+			// set the environment variable WEBKIT_DISABLE_DMABUF_RENDERER=1 before starting the application.
+			// This disables hardware-accelerated rendering in the WebKit web process.
+			// See: https://bugs.webkit.org/show_bug.cgi?id=239429
+			if (GTK.GTK4 && WebKitGTK.LibraryLoaded) {
+				String dmabufDisabled = System.getenv("WEBKIT_DISABLE_DMABUF_RENDERER");
+				if (dmabufDisabled == null || !"1".equals(dmabufDisabled)) {
+					System.err.println("SWT WebKit on GTK4: WEBKIT_DISABLE_DMABUF_RENDERER environment variable not set.");
+					System.err.println("If you experience web process crashes, set WEBKIT_DISABLE_DMABUF_RENDERER=1 before starting the application.");
+				}
+			}
 	}
 
 	@Override
