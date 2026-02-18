@@ -29,9 +29,13 @@ import org.eclipse.swt.widgets.Shell;
  * Expected result:
  * - Content is rendered correctly in the Browser widget
  * 
- * Before fix:
- * - Browser stayed empty when setText was used
- * - setUrl worked fine
+ * Issue:
+ * - webkit_web_view_load_html doesn't render content on GTK4/WebKitGTK 6 with sandbox
+ * - setUrl worked fine (uses webkit_web_view_load_uri)
+ * 
+ * Fix:
+ * - Use webkit_web_view_load_bytes instead of webkit_web_view_load_html for GTK4
+ * - This API works properly with the GTK4 sandbox
  */
 public class Bug_BrowserSetTextGTK4 {
 	public static void main(String[] args) {
