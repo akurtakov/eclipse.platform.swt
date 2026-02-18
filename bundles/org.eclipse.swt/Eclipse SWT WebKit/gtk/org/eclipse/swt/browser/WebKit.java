@@ -2072,15 +2072,6 @@ public boolean setText (String html, boolean trusted) {
 		uriBytes = Converter.wcsToMbcs (URI_FILEROOT, true);
 	}
 	WebKitGTK.webkit_web_view_load_html (webView, html_bytes, uriBytes);
-	
-	// GTK4/Wayland: Force widget size allocation to ensure content renders properly
-	// The load-changed signal may not trigger proper rendering on Wayland without this.
-	if (GTK.GTK4) {
-		GtkAllocation allocation = new GtkAllocation();
-		GTK.gtk_widget_get_allocation(browser.handle, allocation);
-		GTK4.gtk_widget_size_allocate(browser.handle, allocation, -1);
-		GTK.gtk_widget_queue_draw(browser.handle);
-	}
 
 	return true;
 }
@@ -2514,7 +2505,9 @@ long webkit_load_changed (long web_view, int status, long user_data) {
 			return handleLoadCommitted (uri, true);
 		}
 		case WebKitGTK.WEBKIT2_LOAD_FINISHED: {
-			if (firstLoad) {
+			// GTK4/Wayland: Always trigger size allocation to ensure proper rendering
+			// GTK3: Only do this on first load
+			if (firstLoad || GTK.GTK4) {
 				GtkAllocation allocation = new GtkAllocation ();
 				GTK.gtk_widget_get_allocation(browser.handle, allocation);
 				if (GTK.GTK4) {
