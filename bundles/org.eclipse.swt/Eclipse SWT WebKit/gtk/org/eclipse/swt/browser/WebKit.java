@@ -673,9 +673,6 @@ public void create (Composite parent, int style) {
 			// Add /tmp to sandbox for temporary files
 			byte[] tmpPath = Converter.wcsToMbcs("/tmp", true);
 			WebKitGTK.webkit_web_context_add_path_to_sandbox(context, tmpPath, false);
-			// Add /dev/shm to sandbox for shared memory (required for Wayland)
-			byte[] shmPath = Converter.wcsToMbcs("/dev/shm", true);
-			WebKitGTK.webkit_web_context_add_path_to_sandbox(context, shmPath, false);
 		}
 		WebKitGTK.webkit_web_context_register_uri_scheme(context, SWT_PROTOCOL, RequestProc.getAddress(), 0, 0);
 		long security = WebKitGTK.webkit_web_context_get_security_manager(context);
@@ -2064,9 +2061,6 @@ public void refresh () {
 
 @Override
 public boolean setText (String html, boolean trusted) {
-	/* convert the String containing HTML to an array of bytes with UTF-8 data */
-	byte[] html_bytes = (html + '\0').getBytes (StandardCharsets.UTF_8); //$NON-NLS-1$
-
 	w2_bug527738LastRequestCounter.incrementAndGet();
 	byte[] uriBytes;
 	if (!trusted) {
@@ -2074,7 +2068,21 @@ public boolean setText (String html, boolean trusted) {
 	} else {
 		uriBytes = Converter.wcsToMbcs (URI_FILEROOT, true);
 	}
-	WebKitGTK.webkit_web_view_load_html (webView, html_bytes, uriBytes);
+	
+	if (GTK.GTK4) {
+		// GTK4/WebKitGTK 6: Use webkit_web_view_load_bytes instead of webkit_web_view_load_html
+		// to work with the sandbox on Wayland. load_html doesn't render content on Wayland.
+		byte[] html_bytes = Converter.wcsToMbcs(html, false);
+		byte[] mime_type_bytes = Converter.javaStringToCString("text/html");
+		byte[] encoding_bytes = Converter.javaStringToCString("UTF-8");
+		long gBytes = OS.g_bytes_new(html_bytes, html_bytes.length);
+		WebKitGTK.webkit_web_view_load_bytes(webView, gBytes, mime_type_bytes, encoding_bytes, uriBytes);
+		OS.g_bytes_unref(gBytes);
+	} else {
+		// GTK3: Use the original webkit_web_view_load_html
+		byte[] html_bytes = (html + '\0').getBytes (StandardCharsets.UTF_8); //$NON-NLS-1$
+		WebKitGTK.webkit_web_view_load_html (webView, html_bytes, uriBytes);
+	}
 
 	return true;
 }
