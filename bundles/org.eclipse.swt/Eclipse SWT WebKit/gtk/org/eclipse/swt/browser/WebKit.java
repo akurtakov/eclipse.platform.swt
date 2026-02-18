@@ -2066,7 +2066,9 @@ public boolean setText (String html, boolean trusted) {
 
 	w2_bug527738LastRequestCounter.incrementAndGet();
 	byte[] uriBytes;
-	if (!trusted) {
+	if (!trusted || GTK.GTK4) {
+		// For GTK4, always use about:blank as base URI due to sandbox restrictions
+		// that prevent file:// access. For GTK3, use about:blank for untrusted content.
 		uriBytes = Converter.wcsToMbcs (ABOUT_BLANK, true);
 	} else {
 		uriBytes = Converter.wcsToMbcs (URI_FILEROOT, true);
