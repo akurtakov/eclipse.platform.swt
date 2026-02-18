@@ -31,12 +31,12 @@ import org.eclipse.swt.widgets.Shell;
  * 
  * Issue:
  * - Browser.setText() renders blank on Wayland but works fine on X11
- * - Root cause: webkit_web_view_load_html doesn't work properly with GTK4 sandbox on Wayland
- * - /dev/shm cannot be added to sandbox (explicitly disallowed by WebKitGTK)
+ * - Root cause: Widget not properly sized/rendered after webkit_web_view_load_html on Wayland
+ * - The load-changed signal handling doesn't trigger proper layout on Wayland
  * 
  * Fix:
- * - Use webkit_web_view_load_bytes instead of webkit_web_view_load_html for GTK4
- * - This API handles shared memory requirements internally in a sandbox-compatible way
+ * - Force widget size allocation and queue draw after webkit_web_view_load_html for GTK4
+ * - This ensures proper widget layout/rendering similar to what happens on first load
  */
 public class Bug_BrowserSetTextGTK4 {
 	public static void main(String[] args) {
