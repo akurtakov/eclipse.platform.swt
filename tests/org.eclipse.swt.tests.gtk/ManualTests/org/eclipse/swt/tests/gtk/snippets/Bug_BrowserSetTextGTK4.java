@@ -31,12 +31,12 @@ import org.eclipse.swt.widgets.Shell;
  * 
  * Issue:
  * - Browser.setText() renders blank on Wayland but works fine on X11
- * - Root cause: GTK4 sandbox blocks /dev/shm (shared memory) access
- * - Wayland uses shared memory for rendering, X11 doesn't require it
+ * - Root cause: webkit_web_view_load_html doesn't work properly with GTK4 sandbox on Wayland
+ * - /dev/shm cannot be added to sandbox (explicitly disallowed by WebKitGTK)
  * 
  * Fix:
- * - Add /dev/shm to webkit_web_context sandbox for GTK4
- * - This allows web process to use shared memory for rendering on Wayland
+ * - Use webkit_web_view_load_bytes instead of webkit_web_view_load_html for GTK4
+ * - This API handles shared memory requirements internally in a sandbox-compatible way
  */
 public class Bug_BrowserSetTextGTK4 {
 	public static void main(String[] args) {
