@@ -20,22 +20,23 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
 /**
- * Test for Browser.setText on GTK4/WebkitGTK 6
+ * Test for Browser.setText on GTK4/WebkitGTK 6 with Wayland
  * 
  * Steps to reproduce:
- * 1. Run this snippet on GTK4/WebkitGTK 6
+ * 1. Run this snippet on GTK4/WebkitGTK 6 with Wayland compositor
  * 2. The browser should display "Hello World from setText!" with a heading and paragraph
  * 
  * Expected result:
  * - Content is rendered correctly in the Browser widget
  * 
  * Issue:
- * - webkit_web_view_load_html doesn't render content on GTK4/WebKitGTK 6 with sandbox
- * - setUrl worked fine (uses webkit_web_view_load_uri)
+ * - Browser.setText() renders blank on Wayland but works fine on X11
+ * - Root cause: GTK4 sandbox blocks /dev/shm (shared memory) access
+ * - Wayland uses shared memory for rendering, X11 doesn't require it
  * 
  * Fix:
- * - Use webkit_web_view_load_bytes instead of webkit_web_view_load_html for GTK4
- * - This API works properly with the GTK4 sandbox
+ * - Add /dev/shm to webkit_web_context sandbox for GTK4
+ * - This allows web process to use shared memory for rendering on Wayland
  */
 public class Bug_BrowserSetTextGTK4 {
 	public static void main(String[] args) {
