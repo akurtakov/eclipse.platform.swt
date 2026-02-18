@@ -2061,19 +2061,28 @@ public void refresh () {
 
 @Override
 public boolean setText (String html, boolean trusted) {
-	/* convert the String containing HTML to an array of bytes with UTF-8 data */
-	byte[] html_bytes = (html + '\0').getBytes (StandardCharsets.UTF_8); //$NON-NLS-1$
-
 	w2_bug527738LastRequestCounter.incrementAndGet();
 	byte[] uriBytes;
-	if (!trusted || GTK.GTK4) {
-		// For GTK4, always use about:blank as base URI due to sandbox restrictions
-		// that prevent file:// access. For GTK3, use about:blank for untrusted content.
+	if (!trusted) {
 		uriBytes = Converter.wcsToMbcs (ABOUT_BLANK, true);
 	} else {
 		uriBytes = Converter.wcsToMbcs (URI_FILEROOT, true);
 	}
-	WebKitGTK.webkit_web_view_load_html (webView, html_bytes, uriBytes);
+	
+	if (GTK.GTK4) {
+		// GTK4/WebKitGTK 6: Use webkit_web_view_load_bytes instead of webkit_web_view_load_html
+		// to work properly with the sandbox. load_html doesn't render content on GTK4.
+		byte[] html_bytes = Converter.wcsToMbcs(html, false);
+		byte[] mime_type_bytes = Converter.javaStringToCString("text/html");
+		byte[] encoding_bytes = Converter.javaStringToCString("UTF-8");
+		long gBytes = OS.g_bytes_new(html_bytes, html_bytes.length);
+		WebKitGTK.webkit_web_view_load_bytes(webView, gBytes, mime_type_bytes, encoding_bytes, uriBytes);
+		OS.g_bytes_unref(gBytes);
+	} else {
+		// GTK3: Use the original webkit_web_view_load_html
+		byte[] html_bytes = (html + '\0').getBytes (StandardCharsets.UTF_8); //$NON-NLS-1$
+		WebKitGTK.webkit_web_view_load_html (webView, html_bytes, uriBytes);
+	}
 
 	return true;
 }
