@@ -31,12 +31,12 @@ import org.eclipse.swt.widgets.Shell;
  * 
  * Issue:
  * - Browser.setText() renders blank on Wayland but works fine on X11
- * - Root cause: Widget not properly sized/rendered after webkit_web_view_load_html on Wayland
- * - The load-changed signal handling doesn't trigger proper layout on Wayland
+ * - Root cause: Widget not properly sized after webkit_web_view_load_html on Wayland
+ * - Size allocation in webkit_load_changed only happened on firstLoad
  * 
  * Fix:
- * - Force widget size allocation and queue draw after webkit_web_view_load_html for GTK4
- * - This ensures proper widget layout/rendering similar to what happens on first load
+ * - Modified webkit_load_changed to always trigger size allocation for GTK4
+ * - This ensures proper widget layout on every load, not just the first one
  */
 public class Bug_BrowserSetTextGTK4 {
 	public static void main(String[] args) {
