@@ -380,6 +380,12 @@ public static final native long webkit_network_session_get_cookie_manager(long s
 public static final native long webkit_network_session_get_website_data_manager(long session);
 
 /** @method flags=dynamic */
+public static final native void webkit_network_session_set_tls_errors_policy(long session, int policy);
+
+/** @method flags=dynamic */
+public static final native long webkit_network_session_allow_tls_certificate_for_host(long session, long GTlsCertificate, byte[] constGCharHost);
+
+/** @method flags=dynamic */
 public static final native long webkit_web_context_get_cookie_manager(long context);
 
 /** @method flags=dynamic */
