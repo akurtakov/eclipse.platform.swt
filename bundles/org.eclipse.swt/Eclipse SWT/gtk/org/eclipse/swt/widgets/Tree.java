@@ -1346,6 +1346,11 @@ long eventWindow () {
 }
 
 @Override
+long eventSurface () {
+	return paintSurface ();
+}
+
+@Override
 Rectangle getClientAreaInPixels () {
 	checkWidget();
 	if(RESIZE_ON_GETCLIENTAREA) {
@@ -2205,7 +2210,11 @@ long gtk_button_press_event (long widget, long event) {
 	GDK.gdk_event_get_root_coords(event, eventRX, eventRY);
 
 	long eventGdkResource = gdk_event_get_surface_or_window(event);
-	if (eventGdkResource != GTK3.gtk_tree_view_get_bin_window (handle)) return 0;
+	if (GTK.GTK4) {
+		if (eventGdkResource != gtk_widget_get_surface (handle)) return 0;
+	} else {
+		if (eventGdkResource != GTK3.gtk_tree_view_get_bin_window (handle)) return 0;
+	}
 
 	long result = super.gtk_button_press_event (widget, event);
 	if (result != 0) return result;
@@ -2796,7 +2805,7 @@ boolean mnemonicMatch (char key) {
 @Override
 long paintWindow () {
 	GTK.gtk_widget_realize (handle);
-	// TODO: this function has been removed on GTK4
+	if (GTK.GTK4) return gtk_widget_get_surface (handle);
 	return GTK3.gtk_tree_view_get_bin_window (handle);
 }
 

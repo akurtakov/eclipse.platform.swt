@@ -1307,7 +1307,7 @@ void createDisplay (DeviceData data) {
 	/* Initialize the filter and event callback */
 	eventCallback = new Callback (this, "eventProc", 2); //$NON-NLS-1$
 	eventProc = eventCallback.getAddress ();
-	GDK.gdk_event_handler_set (eventProc, 0, 0);
+	if (!GTK.GTK4) GDK.gdk_event_handler_set (eventProc, 0, 0);
 
 	signalCallback = new Callback (this, "signalProc", 3); //$NON-NLS-1$
 	signalProc = signalCallback.getAddress ();
@@ -4772,7 +4772,7 @@ void releaseDisplay () {
 	COLOR_TOGGLE_BUTTON_FOREGROUND_RGBA = null;
 
 	/* Dispose the event callback */
-	GDK.gdk_event_handler_set (0, 0, 0);
+	if (!GTK.GTK4) GDK.gdk_event_handler_set (0, 0, 0);
 	eventCallback.dispose ();  eventCallback = null;
 
 	/* Dispose the hidden shell */

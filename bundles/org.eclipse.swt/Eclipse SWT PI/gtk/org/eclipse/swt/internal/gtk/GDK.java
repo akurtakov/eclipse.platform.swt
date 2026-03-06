@@ -409,7 +409,7 @@ public class GDK extends OS {
 	/**
 	 * @method flags=dynamic
 	 */
-	// TODO GTK4 function removed
+	/* [GTK3 only, if-def'd in os.h] */
 	public static final native int gdk_drag_context_get_actions(long context);
 	/**
 	 * @param context cast=(GdkDragContext *)
@@ -419,7 +419,7 @@ public class GDK extends OS {
 	/**
 	 * @method flags=dynamic
 	 */
-	// TODO GTK4 function removed
+	/* [GTK3 only, if-def'd in os.h] */
 	public static final native int gdk_drag_context_get_selected_action(long context);
 	/**
 	 * @param context cast=(GdkDragContext *)
@@ -540,7 +540,7 @@ public class GDK extends OS {
 	/**
 	 * @method flags=dynamic
 	 */
-	// TODO GTK4 function removed
+	/* [GTK3 only, if-def'd in os.h] */
 	public static final native void gdk_event_handler_set(long func, long data, long notify);
 	/* [GTK3 only, if-def'd in os.h] */
 	public static final native long gdk_event_new(int type);

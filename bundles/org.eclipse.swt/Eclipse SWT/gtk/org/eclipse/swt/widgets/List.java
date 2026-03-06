@@ -452,6 +452,11 @@ long eventWindow () {
 	return paintWindow ();
 }
 
+@Override
+long eventSurface () {
+	return paintSurface ();
+}
+
 /**
  * Returns the zero-relative index of the item which currently
  * has the focus in the receiver, or -1 if no item has focus.
@@ -1098,7 +1103,7 @@ public boolean isSelected (int index) {
 @Override
 long paintWindow () {
 	GTK.gtk_widget_realize (handle);
-	// TODO: this function has been removed on GTK4
+	if (GTK.GTK4) return gtk_widget_get_surface (handle);
 	return GTK3.gtk_tree_view_get_bin_window (handle);
 }
 
