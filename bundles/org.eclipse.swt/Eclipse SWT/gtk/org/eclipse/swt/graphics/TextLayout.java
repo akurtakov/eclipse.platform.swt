@@ -157,9 +157,11 @@ private static class MetricsAdapter {
 			wantRect.y = y_origin;
 			wantRect.height = lineMetricsInPixels.getHeight();
 
-			long limitRgn = Cairo.cairo_region_create_rectangle(wantRect);
-			Cairo.cairo_region_intersect(rgn, limitRgn);
-			Cairo.cairo_region_destroy(limitRgn);
+			if (wantRect.isValid()) {
+				long limitRgn = Cairo.cairo_region_create_rectangle(wantRect);
+				Cairo.cairo_region_intersect(rgn, limitRgn);
+				Cairo.cairo_region_destroy(limitRgn);
+			}
 		}
 
 		return rgn;
@@ -756,9 +758,11 @@ void drawWithCairo(GC gc, int x, int y, int start, int end, int yExtent, boolean
 			cairo_rectangle_int_t rect = new cairo_rectangle_int_t();
 			Cairo.cairo_region_get_extents(rgn, rect);
 			rect.height += yExtent;
-			long extendRgn = Cairo.cairo_region_create_rectangle(rect);
-			Cairo.cairo_region_union(rgn, extendRgn);
-			Cairo.cairo_region_destroy(extendRgn);
+			if (rect.isValid()) {
+				long extendRgn = Cairo.cairo_region_create_rectangle(rect);
+				Cairo.cairo_region_union(rgn, extendRgn);
+				Cairo.cairo_region_destroy(extendRgn);
+			}
 		}
 		GDK.gdk_cairo_region(cairo, rgn);
 		Cairo.cairo_clip(cairo);
