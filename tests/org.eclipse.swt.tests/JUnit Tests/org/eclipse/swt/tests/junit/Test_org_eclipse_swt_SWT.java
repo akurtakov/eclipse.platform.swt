@@ -20,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Paths;
 import java.security.CodeSigner;
 import java.security.cert.Certificate;
@@ -76,16 +78,14 @@ public class Test_org_eclipse_swt_SWT {
 	}
 
 	private String pathFromClass(Class<?> classValue) {
-		String filePrefix = SwtTestUtil.isWindows ? "file:/" : "file:";
-
-		String url = classValue.getProtectionDomain().getCodeSource().getLocation().toString();
-		assertTrue(url.startsWith(filePrefix));
-
-		String urlPath = url.substring(filePrefix.length());
-		String path = Paths.get(urlPath).toAbsolutePath().toString();
-
-		// On Windows, use / for consistency
-		return path.replace('\\', '/');
+		URL location = classValue.getProtectionDomain().getCodeSource().getLocation();
+		String url = location.toString();
+		assertTrue(url.startsWith("file:"), "Expected a file: URL, got: " + url);
+		try {
+			return Paths.get(location.toURI()).toAbsolutePath().toString().replace('\\', '/');
+		} catch (URISyntaxException e) {
+			throw new AssertionError("Cannot convert URL to path: " + url, e);
+		}
 	}
 
 	private List<String> signersFromClass(Class<?> classValue) {
