@@ -21,6 +21,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Enumeration;
 import java.util.jar.Attributes;
 
 public class Library {
@@ -192,33 +193,31 @@ static boolean extract (String extractToFilePath, String mappedName) {
 }
 
 static boolean isLoadable () {
-	URL url = Platform.class.getClassLoader ().getResource ("org/eclipse/swt/internal/Library.class"); //$NON-NLS-1$
-	if (!url.getProtocol ().equals ("jar")) { //$NON-NLS-1$
-		/* SWT is presumably running in a development environment */
-		return true;
-	}
-
-	Attributes attributes = null;
-	try {
-		URLConnection connection = url.openConnection();
-		if (!(connection instanceof JarURLConnection jc)) {
-			/* should never happen for a "jar:" url */
-			return false;
-		}
-		attributes = jc.getMainAttributes();
-	} catch (IOException e) {
-		/* should never happen for a valid SWT jar with the expected manifest values */
-		return false;
-	}
-
 	String os = os ();
 	String arch = arch ();
-	String manifestOS = attributes.getValue ("SWT-OS"); //$NON-NLS-1$
-	String manifestArch = attributes.getValue ("SWT-Arch"); //$NON-NLS-1$
-	if (arch.equals (manifestArch) && os.equals (manifestOS)) {
-		return true;
+	try {
+		Enumeration<URL> urls = Platform.class.getClassLoader ().getResources ("org/eclipse/swt/internal/Library.class"); //$NON-NLS-1$
+		while (urls.hasMoreElements ()) {
+			URL url = urls.nextElement ();
+			if (!url.getProtocol ().equals ("jar")) { //$NON-NLS-1$
+				/* SWT is presumably running in a development environment */
+				return true;
+			}
+			URLConnection connection = url.openConnection ();
+			if (!(connection instanceof JarURLConnection jc)) {
+				continue;
+			}
+			Attributes attributes = jc.getMainAttributes ();
+			String manifestOS = attributes.getValue ("SWT-OS"); //$NON-NLS-1$
+			String manifestArch = attributes.getValue ("SWT-Arch"); //$NON-NLS-1$
+			if (arch.equals (manifestArch) && os.equals (manifestOS)) {
+				return true;
+			}
+		}
+	} catch (IOException e) {
+		/* Getting resources from the classloader should not fail for valid JARs.
+		 * If it does, play it safe and report as non-loadable. */
 	}
-
 	return false;
 }
 

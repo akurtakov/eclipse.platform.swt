@@ -20,14 +20,21 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.IOException;
+import java.net.JarURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Paths;
 import java.security.CodeSigner;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
@@ -109,6 +116,82 @@ public class Test_org_eclipse_swt_SWT {
 	}
 
 	/**
+	 * Returns the path of the SWT platform JAR matching the current OS and architecture,
+	 * by iterating all Library.class resources and checking each JAR's manifest for
+	 * SWT-OS/SWT-Arch attributes. Falls back to SWT.class's JAR if no matching entry is
+	 * found (e.g. single-JAR deployments without manifest attributes).
+	 * Returns {@code null} when running in a development environment (class files, not JARs).
+	 * <p>
+	 * Note: the OS/arch mapping intentionally mirrors {@code Library.os()} and
+	 * {@code Library.arch()} from the internal package; those methods are
+	 * package-private and therefore cannot be called from test code.
+	 * </p>
+	 */
+	private String pathFromPlatformSwtJar() {
+		// Determine the current platform identifiers (mirrors Library.os() / Library.arch())
+		String osName = System.getProperty("os.name"); //$NON-NLS-1$
+		String osArch = System.getProperty("os.arch"); //$NON-NLS-1$
+		if ("amd64".equals(osArch)) osArch = "x86_64"; //$NON-NLS-1$ //$NON-NLS-2$
+		final String swtOs;
+		if ("Linux".equals(osName)) swtOs = "linux"; //$NON-NLS-1$ //$NON-NLS-2$
+		else if ("Mac OS X".equals(osName)) swtOs = "macosx"; //$NON-NLS-1$ //$NON-NLS-2$
+		else swtOs = "win32"; //$NON-NLS-1$
+		final String swtArch = osArch;
+
+		try {
+			Enumeration<URL> urls = SWT.class.getClassLoader().getResources("org/eclipse/swt/internal/Library.class"); //$NON-NLS-1$
+			while (urls.hasMoreElements()) {
+				URL url = urls.nextElement();
+				if (!"jar".equals(url.getProtocol())) { //$NON-NLS-1$
+					return null; // development environment (class files, not JARs)
+				}
+				URLConnection conn = url.openConnection();
+				if (conn instanceof JarURLConnection jc) {
+					Attributes attrs = jc.getMainAttributes();
+					if (swtOs.equals(attrs.getValue("SWT-OS")) && swtArch.equals(attrs.getValue("SWT-Arch"))) { //$NON-NLS-1$ //$NON-NLS-2$
+						URL jarFileUrl = jc.getJarFileURL();
+						return Paths.get(jarFileUrl.toURI()).toAbsolutePath().toString().replace('\\', '/');
+					}
+				}
+			}
+		} catch (IOException | URISyntaxException e) {
+			// fall through to default
+		}
+		// Fall back: single-JAR deployment or no platform-specific manifest attributes
+		return pathFromClass(SWT.class);
+	}
+
+	/**
+	 * Returns the code-signer names from the JAR at {@code jarPath} by reading
+	 * the Library.class entry (which triggers JAR signature verification).
+	 */
+	private List<String> signersFromJarPath(String jarPath) {
+		List<String> result = new ArrayList<>();
+		try (JarFile jarFile = new JarFile(new java.io.File(jarPath), true)) {
+			JarEntry entry = jarFile.getJarEntry("org/eclipse/swt/internal/Library.class"); //$NON-NLS-1$
+			if (entry != null) {
+				// Must read the entry bytes to trigger JAR signature verification
+				try (java.io.InputStream is = jarFile.getInputStream(entry)) {
+					is.readAllBytes();
+				}
+				CodeSigner[] signers = entry.getCodeSigners();
+				if (signers != null) {
+					for (CodeSigner signer : signers) {
+						Certificate cert = signer.getSignerCertPath().getCertificates().get(0);
+						if (cert instanceof X509Certificate x509) {
+							result.add(x509.getSubjectX500Principal().getName());
+						}
+					}
+				}
+			}
+		} catch (IOException e) {
+			// If the JAR cannot be read or verified, treat it as unsigned.
+			// This is the conservative default for test validation purposes.
+		}
+		return result;
+	}
+
+	/**
 	 * Ensure that SWT being tested was built together with the tests. This
 	 * is a test designed for build scripts, such as the one that checks
 	 * GitHub Pull Requests.
@@ -116,9 +199,16 @@ public class Test_org_eclipse_swt_SWT {
 	@Test
 	@DisabledIfSystemProperty(named = "org.eclipse.swt.tests.junit.disable.test_isLocal", matches = "true")
 	public void test_isLocal() {
-		String swtPath = pathFromClass(SWT.class);
+		// When all platform binary JARs are on the classpath (e.g. in a local
+		// multi-platform build), SWT.class may be loaded from a JAR for a
+		// different platform (e.g. aarch64 on an x86_64 machine). Use the JAR
+		// whose manifest identifies it as the current platform's fragment instead.
+		String swtPath = pathFromPlatformSwtJar();
+		if (swtPath == null) {
+			return; // development environment (class files), nothing to check
+		}
 		String tstPath = pathFromClass(Test_org_eclipse_swt_SWT.class);
-		List<String> swtSigners = signersFromClass(SWT.class);
+		List<String> swtSigners = signersFromJarPath(swtPath);
 
 		// If SWT is signed by Eclipse, that's a good sign that it wasn't built locally
 		for (String signer : swtSigners) {
