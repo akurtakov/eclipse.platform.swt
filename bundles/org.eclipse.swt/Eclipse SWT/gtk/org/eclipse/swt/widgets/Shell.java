@@ -1868,20 +1868,27 @@ long gtk_size_allocate (long widget, long allocation) {
 	 * TODO: Make use of the entire vertical height
 	 */
 	if (GTK.GTK4) {
-		if(!GTK4.gtk_window_is_maximized(shellHandle)) {
-			GTK.gtk_window_get_default_size(shellHandle, widthA, heightA);
-		}
-		else {
-			long display = GDK.gdk_display_get_default();
-			long monitor = GDK.gdk_display_get_monitor_at_surface(display, paintSurface());
+		if (fullScreen || GTK4.gtk_window_is_maximized(shellHandle)) {
+			long gtkDisplay = GDK.gdk_display_get_default();
+			long monitor = GDK.gdk_display_get_monitor_at_surface(gtkDisplay, paintSurface());
 			GDK.gdk_monitor_get_geometry(monitor, monitorSize);
-			long header = GTK4.gtk_window_get_titlebar(shellHandle);
-			int[] headerNaturalHeight = new int[1];
-			if (header != 0) {
-				GTK4.gtk_widget_measure(header, GTK.GTK_ORIENTATION_VERTICAL, -1, null, headerNaturalHeight, null, null);
-			}
 			widthA[0] = monitorSize.width;
-			heightA[0] = monitorSize.height - headerNaturalHeight[0];
+			/*
+			 * When fullscreen, the title bar is hidden so use the full monitor height.
+			 * When maximized, subtract the header bar height to avoid off-screen content.
+			 */
+			if (fullScreen) {
+				heightA[0] = monitorSize.height;
+			} else {
+				long header = GTK4.gtk_window_get_titlebar(shellHandle);
+				int[] headerNaturalHeight = new int[1];
+				if (header != 0) {
+					GTK4.gtk_widget_measure(header, GTK.GTK_ORIENTATION_VERTICAL, -1, null, headerNaturalHeight, null, null);
+				}
+				heightA[0] = monitorSize.height - headerNaturalHeight[0];
+			}
+		} else {
+			GTK.gtk_window_get_default_size(shellHandle, widthA, heightA);
 		}
 	} else {
 		GTK3.gtk_window_get_size(shellHandle, widthA, heightA);
