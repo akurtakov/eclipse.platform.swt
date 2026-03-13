@@ -1273,6 +1273,27 @@ void setOrientation (boolean create) {
 	}
 }
 
+@Override
+void sendEvent (int eventType) {
+	super.sendEvent(eventType);
+	// GTK4: Recursively send SWT.Show to CASCADE sub-menus
+	// DROP_DOWN menus don't have widget handles in GTK4, so they can't receive signals.
+	// When a menu receives SWT.Show, cascade it to all nested sub-menus to ensure
+	// lazy population works at all levels.
+	if (GTK.GTK4 && eventType == SWT.Show) {
+		MenuItem[] items = getItems();
+		for (int i = 0; i < items.length; i++) {
+			MenuItem item = items[i];
+			if ((item.style & SWT.CASCADE) != 0) {
+				Menu subMenu = item.getMenu();
+				if (subMenu != null && !subMenu.isDisposed()) {
+					subMenu.sendEvent(SWT.Show);
+				}
+			}
+		}
+	}
+}
+
 /**
  * Lack of absolute coordinates make Wayland event windows inaccurate.
  * Currently the best approach is to the use the GdkWindow of the mouse
