@@ -57,6 +57,13 @@ public class Menu extends Widget {
 	/** GTK4 only fields */
 	long modelHandle, actionGroup, shortcutController;
 
+	/**
+	 * GTK4 only: for DROP_DOWN menus, stores the GtkPopoverMenu handle
+	 * that GTK creates internally inside the GtkPopoverMenuBar for this submenu.
+	 * Used to connect SHOW/HIDE signals and to deregister on dispose.
+	 */
+	long popoverHandle;
+
 	class Section {
 		LinkedList<MenuItem> sectionItems;
 		private MenuItem separator;
@@ -843,6 +850,75 @@ long gtk_hide (long widget) {
 }
 
 @Override
+long gtk_map (long widget) {
+	if (GTK.GTK4 && (style & SWT.BAR) != 0) {
+		/*
+		 * The GtkPopoverMenuBar has been mapped, which means its internal
+		 * GtkPopoverMenuBarItem children now exist. We iterate them in order,
+		 * find the GtkPopoverMenu child for each, and connect SHOW/HIDE signals
+		 * to it so that SWT MenuListeners on DROP_DOWN menus are notified.
+		 */
+		connectDropDownMenuSignals();
+	}
+	return super.gtk_map(widget);
+}
+
+/**
+ * GTK4 only: iterates the GtkPopoverMenuBar's children in order and connects
+ * SHOW/HIDE signals on the internal GtkPopoverMenu popover for each CASCADE
+ * item that has a DROP_DOWN submenu.
+ * <p>
+ * Called from gtk_map() each time the bar widget is mapped. Items whose
+ * {@code popoverHandle} is already set are skipped, so it is safe to call
+ * this multiple times. If a submenu is replaced via {@code MenuItem.setMenu()}
+ * after the bar has already mapped, the new submenu will be connected the next
+ * time the bar maps (which in practice means on the next shell show).
+ * </p>
+ */
+private void connectDropDownMenuSignals() {
+	if (items == null) return;
+	long barItem = GTK4.gtk_widget_get_first_child(handle);
+	for (MenuItem menuItem : items) {
+		if (barItem == 0) break;
+		/*
+		 * SEPARATOR items create new sections in the GMenuModel but do NOT
+		 * create GtkPopoverMenuBarItem children in the GtkPopoverMenuBar widget.
+		 * Skip them so the barItem pointer stays aligned with non-separator items.
+		 */
+		if ((menuItem.style & SWT.SEPARATOR) != 0) continue;
+		if (menuItem.menu != null && menuItem.menu.popoverHandle == 0) {
+			long popover = findGtkPopoverMenuChild(barItem);
+			if (popover != 0) {
+				menuItem.menu.popoverHandle = popover;
+				display.addWidget(popover, menuItem.menu);
+				OS.g_signal_connect_closure_by_id(popover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
+				OS.g_signal_connect_closure_by_id(popover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+			}
+		}
+		barItem = GTK4.gtk_widget_get_next_sibling(barItem);
+	}
+}
+
+/**
+ * GTK4 only: searches the direct children of a GtkPopoverMenuBarItem for a
+ * GtkPopoverMenu widget and returns its handle, or 0 if not found.
+ */
+private long findGtkPopoverMenuChild(long barItem) {
+	long child = GTK4.gtk_widget_get_first_child(barItem);
+	while (child != 0) {
+		long typeNamePtr = OS.G_OBJECT_TYPE_NAME(child);
+		if (typeNamePtr != 0) {
+			String typeName = Converter.cCharPtrToJavaString(typeNamePtr, false);
+			if ("GtkPopoverMenu".equals(typeName)) {
+				return child;
+			}
+		}
+		child = GTK4.gtk_widget_get_next_sibling(child);
+	}
+	return 0;
+}
+
+@Override
 long gtk_show (long widget) {
 	if ((style & SWT.POP_UP) != 0) {
 		if (display.activeShell != null) {
@@ -911,6 +987,16 @@ void hookEvents() {
 		if ((style & SWT.DROP_DOWN) == 0) {
 			OS.g_signal_connect_closure_by_id(handle, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
 			OS.g_signal_connect_closure_by_id(handle, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+
+			if ((style & SWT.BAR) != 0) {
+				/*
+				 * Connect MAP signal on the GtkPopoverMenuBar so that once it is
+				 * realized and its internal GtkPopoverMenuBarItem children exist,
+				 * we can find the GtkPopoverMenu for each DROP_DOWN submenu and
+				 * route SHOW/HIDE signals back to the SWT DROP_DOWN Menu.
+				 */
+				OS.g_signal_connect_closure_by_id(handle, display.signalIds[MAP], 0, display.getClosure(MAP), false);
+			}
 		}
 
 	} else {
@@ -1029,6 +1115,20 @@ void releaseWidget () {
 	cascade = null;
 	if (imageList != null) imageList.dispose ();
 	imageList = null;
+}
+
+@Override
+void deregister() {
+	super.deregister();
+	if (GTK.GTK4 && (style & SWT.DROP_DOWN) != 0 && popoverHandle != 0) {
+		/*
+		 * Remove the GtkPopoverMenu from the widget table that was registered
+		 * in connectDropDownMenuSignals() so that signals on the (now-dead)
+		 * popover are no longer routed to this disposed menu.
+		 */
+		display.removeWidget(popoverHandle);
+		popoverHandle = 0;
+	}
 }
 
 /**
