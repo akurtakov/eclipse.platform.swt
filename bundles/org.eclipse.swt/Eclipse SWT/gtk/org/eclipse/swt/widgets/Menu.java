@@ -58,11 +58,21 @@ public class Menu extends Widget {
 	long modelHandle, actionGroup, shortcutController;
 
 	/**
-	 * GTK4 only: for DROP_DOWN menus, stores the GtkPopoverMenu handle
-	 * that GTK creates internally inside the GtkPopoverMenuBar for this submenu.
-	 * Used to connect SHOW/HIDE signals and to deregister on dispose.
+	 * GTK4 only: for DROP_DOWN menus, the widget-table slot index allocated when
+	 * the internal GtkPopoverMenu was registered via {@link Display#addWidget}.
+	 * <p>
+	 * We store the <em>slot index</em> rather than the raw GTK handle because
+	 * GTK fully recreates the {@code GtkPopoverMenuBarItem} (and its child
+	 * {@code GtkPopoverMenu}) whenever the parent model item is removed and
+	 * re-inserted – for example during {@code MenuItem.setText()}.  After such a
+	 * rebuild the original GTK pointer is a dangling reference; accessing it
+	 * (e.g. via {@code display.removeWidget(handle)}) triggers GTK CRITICAL
+	 * assertions.  Keeping only the table index lets us clean up the Java-side
+	 * entry in {@link #deregister()} without ever touching the GTK handle again.
+	 * </p>
+	 * -1 when no popover has been registered for this menu.
 	 */
-	long popoverHandle;
+	int popoverWidgetTableIndex = -1;
 
 	class Section {
 		LinkedList<MenuItem> sectionItems;
@@ -853,12 +863,15 @@ long gtk_hide (long widget) {
 long gtk_map (long widget) {
 	if (GTK.GTK4 && (style & SWT.BAR) != 0) {
 		/*
-		 * The GtkPopoverMenuBar has been mapped, which means its internal
-		 * GtkPopoverMenuBarItem children now exist. We iterate them in order,
-		 * find the GtkPopoverMenu child for each, and connect SHOW/HIDE signals
-		 * to it so that SWT MenuListeners on DROP_DOWN menus are notified.
+		 * Defer signal wiring until after the current GTK map-signal emission
+		 * has fully unwound.  Running widget-tree traversal synchronously
+		 * inside the MAP signal handler can trigger re-entrancy in GTK's
+		 * internal state (observed as "gtk_widget_get_next_sibling: assertion
+		 * 'GTK_IS_WIDGET (widget)' failed" criticals).  asyncExec schedules
+		 * the work on the next SWT event-loop iteration, by which time GTK's
+		 * mapping machinery is quiescent.
 		 */
-		connectDropDownMenuSignals();
+		display.asyncExec(this::connectDropDownMenuSignals);
 	}
 	return super.gtk_map(widget);
 }
@@ -868,31 +881,63 @@ long gtk_map (long widget) {
  * SHOW/HIDE signals on the internal GtkPopoverMenu popover for each CASCADE
  * item that has a DROP_DOWN submenu.
  * <p>
- * Called from gtk_map() each time the bar widget is mapped. Items whose
- * {@code popoverHandle} is already set are skipped, so it is safe to call
- * this multiple times. If a submenu is replaced via {@code MenuItem.setMenu()}
- * after the bar has already mapped, the new submenu will be connected the next
- * time the bar maps (which in practice means on the next shell show).
+ * Scheduled via {@code asyncExec} from {@link #gtk_map} so that it runs after
+ * the GTK map-signal emission has fully completed.  Safe to call multiple
+ * times: we query each popover's {@code SWT_OBJECT_INDEX} qdata to detect
+ * whether it has already been registered, so duplicate connections are
+ * avoided even when the bar is remapped (e.g. after minimise/restore).
+ * </p>
+ * <p>
+ * Only CASCADE items ({@code SWT.CASCADE}) produce a
+ * {@code GtkPopoverMenuBarItem} widget child in the bar.  SEPARATOR, PUSH,
+ * CHECK and RADIO items are not rendered as bar buttons by
+ * {@code GtkPopoverMenuBar}, so the widget-child iterator must only advance
+ * for CASCADE items.
  * </p>
  */
 private void connectDropDownMenuSignals() {
-	if (items == null) return;
+	if (isDisposed() || handle == 0 || items == null) return;
 	long barItem = GTK4.gtk_widget_get_first_child(handle);
 	for (MenuItem menuItem : items) {
 		if (barItem == 0) break;
 		/*
-		 * SEPARATOR items create new sections in the GMenuModel but do NOT
-		 * create GtkPopoverMenuBarItem children in the GtkPopoverMenuBar widget.
-		 * Skip them so the barItem pointer stays aligned with non-separator items.
+		 * Only CASCADE items create a GtkPopoverMenuBarItem widget child.
+		 * SEPARATOR items create visual section dividers in the model but
+		 * produce no widget child, and PUSH/CHECK/RADIO items are silently
+		 * ignored by GtkPopoverMenuBar.  Skip all non-CASCADE items without
+		 * advancing barItem so that the widget-child iterator stays aligned.
 		 */
-		if ((menuItem.style & SWT.SEPARATOR) != 0) continue;
-		if (menuItem.menu != null && menuItem.menu.popoverHandle == 0) {
+		if ((menuItem.style & SWT.CASCADE) == 0) continue;
+
+		if (menuItem.menu != null) {
 			long popover = findGtkPopoverMenuChild(barItem);
 			if (popover != 0) {
-				menuItem.menu.popoverHandle = popover;
-				display.addWidget(popover, menuItem.menu);
-				OS.g_signal_connect_closure_by_id(popover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
-				OS.g_signal_connect_closure_by_id(popover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+				/*
+				 * Use g_object_get_qdata() on the *current, freshly-walked*
+				 * popover pointer to detect whether this specific GTK object
+				 * has already been registered.  This is safe because we
+				 * obtained the pointer directly from the live widget tree
+				 * moments ago, not from a stored field.
+				 *
+				 * When the model is modified (e.g. via MenuItem.setText()),
+				 * GTK silently destroys the old GtkPopoverMenu and creates a
+				 * fresh one.  The new object will have qdata == 0, so the
+				 * check below correctly re-registers it on the next bar map.
+				 */
+				long existingQdata = OS.g_object_get_qdata(popover, Display.SWT_OBJECT_INDEX);
+				if (existingQdata == 0) {
+					display.addWidget(popover, menuItem.menu);
+					/*
+					 * Display.addWidget() stores (slotIndex + 1) as the
+					 * SWT_OBJECT_INDEX qdata (1-based so that 0 means "not
+					 * registered").  We read the qdata back and subtract 1 to
+					 * recover the 0-based slot index for use in deregister().
+					 */
+					menuItem.menu.popoverWidgetTableIndex =
+						(int) OS.g_object_get_qdata(popover, Display.SWT_OBJECT_INDEX) - 1;
+					OS.g_signal_connect_closure_by_id(popover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
+					OS.g_signal_connect_closure_by_id(popover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+				}
 			}
 		}
 		barItem = GTK4.gtk_widget_get_next_sibling(barItem);
@@ -1120,14 +1165,25 @@ void releaseWidget () {
 @Override
 void deregister() {
 	super.deregister();
-	if (GTK.GTK4 && (style & SWT.DROP_DOWN) != 0 && popoverHandle != 0) {
+	if (GTK.GTK4 && (style & SWT.DROP_DOWN) != 0 && popoverWidgetTableIndex >= 0) {
 		/*
-		 * Remove the GtkPopoverMenu from the widget table that was registered
-		 * in connectDropDownMenuSignals() so that signals on the (now-dead)
-		 * popover are no longer routed to this disposed menu.
+		 * Clean up the widget-table slot that was allocated when the
+		 * GtkPopoverMenu was registered in connectDropDownMenuSignals().
+		 *
+		 * We deliberately do NOT call display.removeWidget(popoverHandle)
+		 * here.  GTK silently destroys and recreates GtkPopoverMenu objects
+		 * whenever the parent model item is touched (e.g. setText()), leaving
+		 * our stored handle dangling.  Accessing freed GTK memory – even just
+		 * to read qdata – is undefined behaviour and produces the observed
+		 * "gtk_widget_get_next_sibling / gtk_widget_unparent: assertion
+		 * 'GTK_IS_WIDGET (widget)' failed" criticals.
+		 *
+		 * Display.removeWidgetByIndex() frees the Java-side slot without
+		 * touching the GTK handle at all.  If the popover is still alive,
+		 * GTK will clear its qdata when the GtkPopoverMenuBar is destroyed.
 		 */
-		display.removeWidget(popoverHandle);
-		popoverHandle = 0;
+		display.removeWidgetByIndex(popoverWidgetTableIndex, this);
+		popoverWidgetTableIndex = -1;
 	}
 }
 
