@@ -309,17 +309,30 @@ void _setVisible (boolean visible) {
 				if (GTK.GTK4) {
 					GdkRectangle popoverPosition = new GdkRectangle();
 					/*
-					 * Feature in GTK4: The coordinates stored in this.x and this.y are in the
-					 * coordinate space of the current GTK parent widget of the popover
-					 * (set via gtk_widget_set_parent). This is because the primary path that
-					 * calls setLocation() is Control.showMenu(), which re-parents the popover
-					 * to this.handle and then stores the gesture-local (widget-relative)
-					 * coordinates directly. gtk_popover_set_pointing_to() also expects
-					 * coordinates relative to the popover's parent widget. So no translation
-					 * is needed here.
+					 * Feature in GTK4: The coordinates stored in this.x and this.y are in
+					 * shellHandle coordinate space. When invoked via Control.showMenu(), the
+					 * gesture-local coordinates are converted to shellHandle-relative before
+					 * calling setLocation(). When called directly by user code with
+					 * setLocation(control.toDisplay(x, y)), the coordinates are already
+					 * shellHandle-relative (toDisplay() returns shellHandle-relative on GTK4).
+					 *
+					 * gtk_popover_set_pointing_to() expects coordinates relative to the
+					 * popover's current GTK parent widget. We translate from shellHandle space
+					 * to that parent using gtk_widget_translate_coordinates(), so the pointing_to
+					 * rectangle is correct regardless of where the popover was re-parented.
 					 */
-					popoverPosition.x = x;
-					popoverPosition.y = y;
+					Shell parentShell = parent.getShell();
+					long shellHandle = parentShell != null ? parentShell.shellHandle : 0;
+					long popoverParent = GTK.gtk_widget_get_parent(handle);
+					double[] destX = new double[1], destY = new double[1];
+					if (shellHandle != 0 && popoverParent != 0 &&
+							GTK4.gtk_widget_translate_coordinates(shellHandle, popoverParent, x, y, destX, destY)) {
+						popoverPosition.x = (int) destX[0];
+						popoverPosition.y = (int) destY[0];
+					} else {
+						popoverPosition.x = x;
+						popoverPosition.y = y;
+					}
 					popoverPosition.width = popoverPosition.height = 1;
 					GTK.gtk_popover_set_pointing_to(handle, popoverPosition);
 

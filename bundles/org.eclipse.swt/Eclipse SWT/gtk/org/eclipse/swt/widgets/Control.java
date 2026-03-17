@@ -6318,8 +6318,22 @@ boolean showMenu (int x, int y, int detail) {
 				GTK.gtk_widget_set_parent(menu.handle, this.handle);
 				if (temp != 0) OS.g_object_unref(temp);
 
-
-				menu.setLocation(x, y);
+				/*
+				 * Feature in GTK4: Menu._setVisible() translates the stored location
+				 * from shellHandle coordinate space to the popover's GTK parent space
+				 * before calling gtk_popover_set_pointing_to(). Store the location in
+				 * shellHandle-relative coordinates so that the translation in _setVisible()
+				 * correctly produces the popover's parent widget-relative coordinates
+				 * regardless of whether the popover has been re-parented.
+				 */
+				Shell controlShell = getShell();
+				long shellHandle = controlShell != null ? controlShell.shellHandle : 0;
+				double[] shellX = new double[1], shellY = new double[1];
+				if (shellHandle != 0 && GTK4.gtk_widget_translate_coordinates(handle, shellHandle, x, y, shellX, shellY)) {
+					menu.setLocation((int) shellX[0], (int) shellY[0]);
+				} else {
+					menu.setLocation(x, y);
+				}
 				menu.setVisible(true);
 
 				return true;
