@@ -4992,32 +4992,6 @@ Widget removeWidget (long handle) {
 	return widget;
 }
 
-/**
- * GTK4 only: frees the widget-table slot at {@code index} if it still holds
- * {@code expected}.
- * <p>
- * Unlike {@link #removeWidget(long)}, this method does <em>not</em> access the
- * GTK object at all.  It is used by {@code Menu.deregister()} to clean up the
- * slot that was allocated for an internal {@code GtkPopoverMenu} handle,
- * because that handle may have been silently freed and recreated by GTK (e.g.
- * after {@code MenuItem.setText()} triggers a model rebuild), leaving the
- * stored pointer dangling.  The GTK {@code SWT_OBJECT_INDEX} qdata on the
- * popover (if the object is still alive) is intentionally left; GTK will clear
- * it when the popover is eventually destroyed.
- * </p>
- *
- * @param index the 0-based widget-table slot to reclaim
- * @param expected the widget that must be in the slot; if the slot has already
- *        been reused the method is a no-op
- */
-void removeWidgetByIndex(int index, Widget expected) {
-	if (index >= 0 && index < widgetTable.length && widgetTable[index] == expected) {
-		widgetTable[index] = null;
-		indexTable[index] = freeSlot;
-		freeSlot = index;
-	}
-}
-
 String debugInfoForIndex(long index) {
 	String s = ", index: " + index;
 	int idx = (int) index;
