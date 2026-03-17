@@ -763,6 +763,7 @@ void destroyWidget() {
 
 			for (MenuItem item : section.sectionItems) {
 				OS.g_menu_insert_item(aboveSection.getSectionHandle(), aboveSection.sectionItems.indexOf(item), item.handle);
+				item.section = aboveSection;
 			}
 
 			OS.g_menu_remove(parent.modelHandle, parent.sections.indexOf(section));
