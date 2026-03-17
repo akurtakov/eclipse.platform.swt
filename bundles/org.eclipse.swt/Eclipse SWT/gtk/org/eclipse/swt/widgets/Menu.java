@@ -1023,6 +1023,14 @@ void releaseParent () {
 
 @Override
 void releaseWidget () {
+	if (GTK.GTK4 && actionGroup != 0 && parent != null) {
+		/* Remove the action group from the shell so it is not left dangling */
+		Shell shell = parent.getShell();
+		if (shell != null) {
+			long shellHandle = shell.topHandle();
+			GTK.gtk_widget_insert_action_group(shellHandle, Converter.javaStringToCString(String.valueOf(this.hashCode())), 0);
+		}
+	}
 	super.releaseWidget ();
 	if (parent != null) parent.removeMenu (this);
 	parent = null;
@@ -1037,10 +1045,36 @@ void releaseWidget () {
  */
 @Override
 void destroyWidget () {
-	super.destroyWidget();
-	if (menuHandle != 0) {
-		OS.g_object_unref(menuHandle);
-		menuHandle = 0;
+	if (GTK.GTK4) {
+		long topHandle = topHandle();
+		releaseHandle();
+		if (topHandle != 0 && (state & HANDLE) != 0) {
+			/*
+			 * For DROP_DOWN menus, handle == modelHandle which is a GMenuModel, not a
+			 * GtkWidget. Calling gtk_widget_unparent() on a non-widget causes GTK critical
+			 * errors such as "gtk_widget_unparent: assertion 'GTK_IS_WIDGET (widget)' failed"
+			 * and cascading "gtk_css_node_insert_after" errors. Only unparent actual widgets
+			 * (BAR and POP_UP menus have real GtkWidget handles).
+			 */
+			if ((style & SWT.DROP_DOWN) == 0) {
+				GTK.gtk_widget_unparent(topHandle);
+			}
+		}
+		/* Release GTK4-specific resources */
+		if (modelHandle != 0) {
+			OS.g_object_unref(modelHandle);
+			modelHandle = 0;
+		}
+		if (actionGroup != 0) {
+			OS.g_object_unref(actionGroup);
+			actionGroup = 0;
+		}
+	} else {
+		super.destroyWidget();
+		if (menuHandle != 0) {
+			OS.g_object_unref(menuHandle);
+			menuHandle = 0;
+		}
 	}
 }
 
