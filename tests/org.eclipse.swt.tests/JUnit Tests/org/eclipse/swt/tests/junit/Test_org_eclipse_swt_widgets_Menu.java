@@ -298,6 +298,39 @@ public void test_setLocationLorg_eclipse_swt_graphics_Point() {
 	assertThrows(IllegalArgumentException.class, () -> menu.setLocation(null), "No exception thrown for null argument");
 }
 
+@Test
+public void test_CascadeMenuShowEvent() {
+	// Test that CASCADE sub-menus receive SWT.Show events when parent menu is shown
+	// This is especially important for GTK4 where DROP_DOWN menus don't emit show signals
+	
+	Menu barMenu = new Menu(shell, SWT.BAR);
+	shell.setMenuBar(barMenu);
+	
+	MenuItem cascadeItem = new MenuItem(barMenu, SWT.CASCADE);
+	cascadeItem.setText("File");
+	
+	Menu dropDownMenu = new Menu(shell, SWT.DROP_DOWN);
+	cascadeItem.setMenu(dropDownMenu);
+	
+	// Add a menu listener to the sub-menu to track if SWT.Show is fired
+	final boolean[] subMenuShown = new boolean[1];
+	dropDownMenu.addMenuListener(MenuListener.menuShownAdapter(e -> {
+		subMenuShown[0] = true;
+	}));
+	
+	// Trigger show event on the bar menu (which should cascade to sub-menus in GTK4)
+	barMenu.notifyListeners(SWT.Show, new Event());
+	
+	// Verify that the sub-menu received SWT.Show event
+	// In GTK4, this is critical for lazy menu population
+	// For GTK3, this test verifies the behavior does not break anything
+	assertTrue(subMenuShown[0], "CASCADE sub-menu should receive SWT.Show event when parent menu is shown");
+	
+	dropDownMenu.dispose();
+	cascadeItem.dispose();
+	barMenu.dispose();
+}
+
 /* custom */
 Menu menu;
 }
