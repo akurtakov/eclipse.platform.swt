@@ -244,7 +244,12 @@ public abstract class Widget {
 	static final int NOTIFY_DEFAULT_WIDTH = 106;
 	static final int NOTIFY_MAXIMIZED = 107;
 	static final int COMPUTE_SIZE = 108;
-	static final int LAST_SIGNAL = 109;
+	// GTK4 list view signals
+	static final int SETUP = 109;
+	static final int BIND = 110;
+	static final int LIST_VIEW_ACTIVATE = 111;
+	static final int SELECTION_CHANGED = 112;
+	static final int LAST_SIGNAL = 113;
 
 	static final String IS_ACTIVE = "org.eclipse.swt.internal.control.isactive"; //$NON-NLS-1$
 	static final String KEY_CHECK_SUBWINDOW = "org.eclipse.swt.internal.control.checksubwindow"; //$NON-NLS-1$
@@ -1081,6 +1086,22 @@ long gtk_row_activated (long tree, long path, long column) {
 }
 
 long gtk_row_has_child_toggled (long model, long path, long iter) {
+	return 0;
+}
+
+long gtk_setup_item (long factory, long listItem) {
+	return 0;
+}
+
+long gtk_bind_item (long factory, long listItem) {
+	return 0;
+}
+
+long gtk_list_view_activate (long listView, long position) {
+	return 0;
+}
+
+long gtk_selection_changed (long selectionModel, long position, long n_items) {
 	return 0;
 }
 
@@ -2649,6 +2670,9 @@ long windowProc (long handle, long arg0, long user_data) {
 		case TOGGLED: return gtk_toggled (handle, arg0);
 		case UNMAP_EVENT: return gtk_unmap_event (handle, arg0);
 		case WINDOW_STATE_EVENT: return gtk_window_state_event (handle, arg0);
+		case SETUP: return gtk_setup_item (handle, arg0);
+		case BIND: return gtk_bind_item (handle, arg0);
+		case LIST_VIEW_ACTIVATE: return gtk_list_view_activate (handle, arg0);
 		default: return 0;
 	}
 }
@@ -2665,6 +2689,7 @@ long windowProc (long handle, long arg0, long arg1, long user_data) {
 		case TEST_COLLAPSE_ROW: return gtk_test_collapse_row (handle, arg0, arg1);
 		case TEST_EXPAND_ROW: return gtk_test_expand_row(handle, arg0, arg1);
 		case ROW_HAS_CHILD_TOGGLED: return gtk_row_has_child_toggled(handle, arg0, arg1);
+		case SELECTION_CHANGED: return gtk_selection_changed (handle, arg0, arg1);
 		default: return 0;
 	}
 }

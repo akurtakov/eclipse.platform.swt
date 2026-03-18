@@ -3674,6 +3674,9 @@ void initializeCallbacks () {
 	closuresProc [Widget.UNMAP_EVENT] = windowProc3;
 	closuresProc [Widget.WINDOW_STATE_EVENT] = windowProc3;
 	closuresProc [Widget.DIRECTION_CHANGED] = windowProc3;
+	closuresProc [Widget.SETUP] = windowProc3;
+	closuresProc [Widget.BIND] = windowProc3;
+	closuresProc [Widget.LIST_VIEW_ACTIVATE] = windowProc3;
 
 	windowCallback4 = new Callback (this, "windowProc", 4); //$NON-NLS-1$
 	windowProc4 = windowCallback4.getAddress ();
@@ -3691,6 +3694,7 @@ void initializeCallbacks () {
 	closuresProc [Widget.DELETE_FROM_CURSOR] = windowProc4;
 	closuresProc [Widget.DELETE_FROM_CURSOR_INVERSE] = windowProc4;
 	closuresProc [Widget.SIZE_ALLOCATE_GTK4] = windowProc4;
+	closuresProc [Widget.SELECTION_CHANGED] = windowProc4;
 
 	windowCallback5 = new Callback (this, "windowProc", 5); //$NON-NLS-1$
 	windowProc5 = windowCallback5.getAddress ();
