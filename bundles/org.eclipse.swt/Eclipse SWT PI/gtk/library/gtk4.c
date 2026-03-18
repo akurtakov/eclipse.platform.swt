@@ -1128,6 +1128,72 @@ JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1drag_1source_1set_1icon)
 }
 #endif
 
+#ifndef NO_gtk_1drop_1down_1get_1model
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gtk_1drop_1down_1get_1model)
+	(JNIEnv *env, jclass that, jlong arg0)
+{
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gtk_1drop_1down_1get_1model_FUNC);
+	rc = (jlong)gtk_drop_down_get_model((GtkDropDown *)arg0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1drop_1down_1get_1model_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gtk_1drop_1down_1get_1selected
+JNIEXPORT jint JNICALL GTK4_NATIVE(gtk_1drop_1down_1get_1selected)
+	(JNIEnv *env, jclass that, jlong arg0)
+{
+	jint rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gtk_1drop_1down_1get_1selected_FUNC);
+	rc = (jint)gtk_drop_down_get_selected((GtkDropDown *)arg0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1drop_1down_1get_1selected_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gtk_1drop_1down_1new
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gtk_1drop_1down_1new)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
+{
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gtk_1drop_1down_1new_FUNC);
+	rc = (jlong)gtk_drop_down_new((GListModel *)arg0, (GtkExpression *)arg1);
+	GTK4_NATIVE_EXIT(env, that, gtk_1drop_1down_1new_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gtk_1drop_1down_1set_1enable_1search
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1drop_1down_1set_1enable_1search)
+	(JNIEnv *env, jclass that, jlong arg0, jboolean arg1)
+{
+	GTK4_NATIVE_ENTER(env, that, gtk_1drop_1down_1set_1enable_1search_FUNC);
+	gtk_drop_down_set_enable_search((GtkDropDown *)arg0, (gboolean)arg1);
+	GTK4_NATIVE_EXIT(env, that, gtk_1drop_1down_1set_1enable_1search_FUNC);
+}
+#endif
+
+#ifndef NO_gtk_1drop_1down_1set_1model
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1drop_1down_1set_1model)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
+{
+	GTK4_NATIVE_ENTER(env, that, gtk_1drop_1down_1set_1model_FUNC);
+	gtk_drop_down_set_model((GtkDropDown *)arg0, (GListModel *)arg1);
+	GTK4_NATIVE_EXIT(env, that, gtk_1drop_1down_1set_1model_FUNC);
+}
+#endif
+
+#ifndef NO_gtk_1drop_1down_1set_1selected
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1drop_1down_1set_1selected)
+	(JNIEnv *env, jclass that, jlong arg0, jint arg1)
+{
+	GTK4_NATIVE_ENTER(env, that, gtk_1drop_1down_1set_1selected_FUNC);
+	gtk_drop_down_set_selected((GtkDropDown *)arg0, (guint)arg1);
+	GTK4_NATIVE_EXIT(env, that, gtk_1drop_1down_1set_1selected_FUNC);
+}
+#endif
+
 #ifndef NO_gtk_1drop_1target_1async_1new
 JNIEXPORT jlong JNICALL GTK4_NATIVE(gtk_1drop_1target_1async_1new)
 	(JNIEnv *env, jclass that, jlong arg0, jint arg1)
@@ -2385,6 +2451,52 @@ JNIEXPORT jlong JNICALL GTK4_NATIVE(gtk_1snapshot_1new)
 	rc = (jlong)gtk_snapshot_new();
 	GTK4_NATIVE_EXIT(env, that, gtk_1snapshot_1new_FUNC);
 	return rc;
+}
+#endif
+
+#ifndef NO_gtk_1string_1list_1append
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1string_1list_1append)
+	(JNIEnv *env, jclass that, jlong arg0, jbyteArray arg1)
+{
+	jbyte *lparg1=NULL;
+	GTK4_NATIVE_ENTER(env, that, gtk_1string_1list_1append_FUNC);
+	if (arg1) if ((lparg1 = (*env)->GetByteArrayElements(env, arg1, NULL)) == NULL) goto fail;
+	gtk_string_list_append((GtkStringList *)arg0, (const char *)lparg1);
+fail:
+	if (arg1 && lparg1) (*env)->ReleaseByteArrayElements(env, arg1, lparg1, 0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1string_1list_1append_FUNC);
+}
+#endif
+
+#ifndef NO_gtk_1string_1list_1new
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gtk_1string_1list_1new)
+	(JNIEnv *env, jclass that, jlong arg0)
+{
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gtk_1string_1list_1new_FUNC);
+	rc = (jlong)gtk_string_list_new((const char * const *)arg0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1string_1list_1new_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gtk_1string_1list_1remove
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1string_1list_1remove)
+	(JNIEnv *env, jclass that, jlong arg0, jint arg1)
+{
+	GTK4_NATIVE_ENTER(env, that, gtk_1string_1list_1remove_FUNC);
+	gtk_string_list_remove((GtkStringList *)arg0, (guint)arg1);
+	GTK4_NATIVE_EXIT(env, that, gtk_1string_1list_1remove_FUNC);
+}
+#endif
+
+#ifndef NO_gtk_1string_1list_1splice
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1string_1list_1splice)
+	(JNIEnv *env, jclass that, jlong arg0, jint arg1, jint arg2, jlong arg3)
+{
+	GTK4_NATIVE_ENTER(env, that, gtk_1string_1list_1splice_FUNC);
+	gtk_string_list_splice((GtkStringList *)arg0, (guint)arg1, (guint)arg2, (const char * const *)arg3);
+	GTK4_NATIVE_EXIT(env, that, gtk_1string_1list_1splice_FUNC);
 }
 #endif
 
