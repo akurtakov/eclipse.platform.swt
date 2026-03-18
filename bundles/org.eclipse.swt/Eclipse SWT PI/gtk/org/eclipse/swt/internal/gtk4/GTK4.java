@@ -744,6 +744,53 @@ public class GTK4 {
 	/** @param combo_box cast=(GtkComboBox *) */
 	public static final native long gtk_combo_box_get_child(long combo_box);
 
+	/* GtkDropDown */
+	/**
+	 * @param model cast=(GListModel *)
+	 * @param expression cast=(GtkExpression *)
+	 */
+	public static final native long gtk_drop_down_new(long model, long expression);
+	/** @param self cast=(GtkDropDown *) */
+	public static final native int gtk_drop_down_get_selected(long self);
+	/**
+	 * @param self cast=(GtkDropDown *)
+	 * @param position cast=(guint)
+	 */
+	public static final native void gtk_drop_down_set_selected(long self, int position);
+	/** @param self cast=(GtkDropDown *) */
+	public static final native long gtk_drop_down_get_model(long self);
+	/**
+	 * @param self cast=(GtkDropDown *)
+	 * @param model cast=(GListModel *)
+	 */
+	public static final native void gtk_drop_down_set_model(long self, long model);
+	/**
+	 * @param self cast=(GtkDropDown *)
+	 * @param enable_search cast=(gboolean)
+	 */
+	public static final native void gtk_drop_down_set_enable_search(long self, boolean enable_search);
+
+	/* GtkStringList */
+	/** @param strings cast=(const char * const *) */
+	public static final native long gtk_string_list_new(long strings);
+	/**
+	 * @param self cast=(GtkStringList *)
+	 * @param string cast=(const char *)
+	 */
+	public static final native void gtk_string_list_append(long self, byte[] string);
+	/**
+	 * @param self cast=(GtkStringList *)
+	 * @param position cast=(guint)
+	 */
+	public static final native void gtk_string_list_remove(long self, int position);
+	/**
+	 * @param self cast=(GtkStringList *)
+	 * @param position cast=(guint)
+	 * @param n_removals cast=(guint)
+	 * @param additions cast=(const char * const *)
+	 */
+	public static final native void gtk_string_list_splice(long self, int position, int n_removals, long additions);
+
 	/* GtkSnapshot */
 
 	public static final native long gtk_snapshot_new();

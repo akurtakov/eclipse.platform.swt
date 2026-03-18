@@ -64,6 +64,8 @@ import org.eclipse.swt.internal.gtk4.*;
 public class Combo extends Composite {
 	long buttonHandle, entryHandle, textRenderer, cellHandle, popupHandle, menuHandle,
 		buttonBoxHandle, cellBoxHandle, arrowHandle;
+	long stringListHandle; // GTK4: GtkStringList used as model for GtkDropDown (READ_ONLY)
+	int gtk4ItemCount = 0; // GTK4: tracks number of items in GtkStringList (READ_ONLY)
 	int lastEventTime, visibleCount = 10;
 	long imContext;
 	long gdkEventKey = 0;
@@ -196,10 +198,53 @@ public void add(String string, int index) {
 
 private void gtk_combo_box_insert(String string, int index) {
 	byte[] buffer = Converter.wcsToMbcs(string, true);
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0) {
+		if (stringListHandle != 0) {
+			if (index == gtk4ItemCount) {
+				// Sequential append (common case - setItems loop or add-at-end)
+				GTK4.gtk_string_list_append(stringListHandle, buffer);
+				gtk4ItemCount++;
+			} else {
+				// Insert in the middle: rebuild from items[] which is already up-to-date
+				gtk4RebuildStringList();
+			}
+		}
+		return;
+	}
 	if (handle != 0) {
 		gtk_combo_box_toggle_wrap(false);
 		GTK.gtk_combo_box_text_insert (handle, index, null, buffer);
 		gtk_combo_box_toggle_wrap(true);
+	}
+}
+
+/**
+ * Rebuilds the GtkStringList from scratch using the current items[] array.
+ * Used for GTK4 READ_ONLY (GtkDropDown) when items need to be reorganized.
+ */
+private void gtk4RebuildStringList() {
+	if (stringListHandle == 0) return;
+	// Clear existing items
+	if (gtk4ItemCount > 0) {
+		GTK4.gtk_string_list_splice(stringListHandle, 0, gtk4ItemCount, 0);
+		gtk4ItemCount = 0;
+	}
+	// Re-add all items from the Java items[] array
+	for (String item : items) {
+		byte[] buf = Converter.wcsToMbcs(item, true);
+		GTK4.gtk_string_list_append(stringListHandle, buf);
+		gtk4ItemCount++;
+	}
+}
+
+/**
+ * Clears all items in the GtkStringList for GTK4 READ_ONLY (GtkDropDown).
+ */
+private void gtk4ClearStringList() {
+	if (stringListHandle == 0) return;
+	if (gtk4ItemCount > 0) {
+		GTK4.gtk_string_list_splice(stringListHandle, 0, gtk4ItemCount, 0);
+		gtk4ItemCount = 0;
 	}
 }
 
@@ -422,6 +467,16 @@ public void clearSelection () {
 }
 
 void clearText () {
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0) {
+		OS.g_signal_handlers_block_matched(handle, OS.G_SIGNAL_MATCH_DATA, 0, 0, 0, 0, NOTIFY_SELECTED);
+		int index = GTK4.gtk_drop_down_get_selected(handle);
+		if (index >= 0 && index < items.length && !items[index].isEmpty()) {
+			postEvent(SWT.Modify);
+		}
+		GTK4.gtk_drop_down_set_selected(handle, -1); // GTK_INVALID_LIST_POSITION
+		OS.g_signal_handlers_unblock_matched(handle, OS.G_SIGNAL_MATCH_DATA, 0, 0, 0, 0, NOTIFY_SELECTED);
+		return;
+	}
 	OS.g_signal_handlers_block_matched (handle, OS.G_SIGNAL_MATCH_DATA, 0, 0, 0, 0, CHANGED);
 	if ((style & SWT.READ_ONLY) != 0) {
 		int index = GTK.gtk_combo_box_get_active (handle);
@@ -521,71 +576,91 @@ void createHandle (int index) {
 	if (fixedHandle == 0) error(SWT.ERROR_NO_HANDLES);
 	if (!GTK.GTK4) GTK3.gtk_widget_set_has_window(fixedHandle, true);
 
-	long oldList = GTK.gtk_window_list_toplevels();
-	if ((style & SWT.READ_ONLY) != 0) {
-		handle = GTK.gtk_combo_box_text_new();
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0) {
+		// GTK4 READ_ONLY: use GtkDropDown + GtkStringList
+		stringListHandle = GTK4.gtk_string_list_new(0);
+		if (stringListHandle == 0) error(SWT.ERROR_NO_HANDLES);
+
+		handle = GTK4.gtk_drop_down_new(stringListHandle, 0);
 		if (handle == 0) error(SWT.ERROR_NO_HANDLES);
 
-		cellHandle = GTK.GTK4 ? GTK4.gtk_combo_box_get_child(handle) : GTK3.gtk_bin_get_child (handle);
-		if (cellHandle == 0) error(SWT.ERROR_NO_HANDLES);
+		OS.swt_fixed_add(fixedHandle, handle);
 
-		gtk_combo_box_toggle_wrap(true);
+		buttonHandle = findButtonHandle();
+		if (buttonHandle != 0) OS.g_object_ref(buttonHandle);
+		menuHandle = findMenuHandle();
+		if (menuHandle != 0) OS.g_object_ref(menuHandle);
+
+		if (buttonHandle != 0) {
+			GTK.gtk_widget_set_receives_default(buttonHandle, false);
+		}
 	} else {
-		handle = GTK.gtk_combo_box_text_new_with_entry();
-		if (handle == 0) error(SWT.ERROR_NO_HANDLES);
+		long oldList = GTK.gtk_window_list_toplevels();
+		if ((style & SWT.READ_ONLY) != 0) {
+			handle = GTK.gtk_combo_box_text_new();
+			if (handle == 0) error(SWT.ERROR_NO_HANDLES);
 
-		entryHandle = GTK.GTK4 ? GTK4.gtk_combo_box_get_child(handle) : GTK3.gtk_bin_get_child(handle);
-		if (entryHandle == 0) error(SWT.ERROR_NO_HANDLES);
-		if (DISABLE_EMOJI && GTK.GTK_VERSION >= OS.VERSION(3, 22, 20)) {
-		    GTK.gtk_entry_set_input_hints(entryHandle, GTK.GTK_INPUT_HINT_NO_EMOJI);
+			cellHandle = GTK3.gtk_bin_get_child(handle);
+			if (cellHandle == 0) error(SWT.ERROR_NO_HANDLES);
+
+			gtk_combo_box_toggle_wrap(true);
+		} else {
+			handle = GTK.gtk_combo_box_text_new_with_entry();
+			if (handle == 0) error(SWT.ERROR_NO_HANDLES);
+
+			entryHandle = GTK.GTK4 ? GTK4.gtk_combo_box_get_child(handle) : GTK3.gtk_bin_get_child(handle);
+			if (entryHandle == 0) error(SWT.ERROR_NO_HANDLES);
+			if (DISABLE_EMOJI && GTK.GTK_VERSION >= OS.VERSION(3, 22, 20)) {
+			    GTK.gtk_entry_set_input_hints(entryHandle, GTK.GTK_INPUT_HINT_NO_EMOJI);
+			}
+
+			imContext = OS.imContextLast();
 		}
 
-		imContext = OS.imContextLast();
+		if (GTK.GTK4) {
+			OS.swt_fixed_add(fixedHandle, handle);
+		} else {
+			popupHandle = findPopupHandle(oldList);
+			GTK3.gtk_container_add(fixedHandle, handle);
+		}
+
+		textRenderer = GTK.gtk_cell_renderer_text_new();
+		if (textRenderer == 0) error(SWT.ERROR_NO_HANDLES);
+
+		GTK.gtk_cell_layout_clear(handle);
+		GTK.gtk_cell_layout_pack_start(handle, textRenderer, true);
+		GTK.gtk_cell_layout_set_attributes(handle, textRenderer, OS.text, 0, 0);
+
+		/*
+		* Feature in GTK. Toggle button creation differs between GTK versions. The
+		* fix is to call size_request() to force the creation of the button
+		* for those versions of GTK that defer the creation.
+		*/
+		menuHandle = findMenuHandle();
+		if (menuHandle != 0) OS.g_object_ref(menuHandle);
+		buttonHandle = findButtonHandle();
+		if (buttonHandle != 0) OS.g_object_ref(buttonHandle);
+		if (buttonBoxHandle != 0) OS.g_object_ref(buttonBoxHandle);
+		if (cellHandle != 0) cellBoxHandle = GTK.gtk_widget_get_parent(cellHandle);
+		if (cellBoxHandle != 0) OS.g_object_ref(cellBoxHandle);
+		/*
+		* Feature in GTK. By default, read only combo boxes
+		* process the RETURN key rather than allowing the
+		* default button to process the key. The fix is to
+		* clear the GTK_RECEIVES_DEFAULT flag.
+		*/
+		if ((style & SWT.READ_ONLY) != 0 && buttonHandle != 0) {
+			GTK.gtk_widget_set_receives_default(buttonHandle, false);
+		}
+		/*
+		 * Find the arrowHandle, which is the handle belonging to the GtkIcon
+		 * drop down arrow. See bug 539367.
+		 */
+		if ((style & SWT.READ_ONLY) != 0) {
+			if (cellBoxHandle != 0) arrowHandle = findArrowHandle();
+		}
 	}
 
-	//TODO: popupHandle is currently not mapped in GTK4, need to see if that is an issue.
-	if (GTK.GTK4) {
-		OS.swt_fixed_add(fixedHandle, handle);
-	} else {
-		popupHandle = findPopupHandle(oldList);
-		GTK3.gtk_container_add (fixedHandle, handle);
-	}
-
-	textRenderer = GTK.gtk_cell_renderer_text_new();
-	if (textRenderer == 0) error(SWT.ERROR_NO_HANDLES);
-
-	GTK.gtk_cell_layout_clear (handle);
-	GTK.gtk_cell_layout_pack_start (handle, textRenderer, true);
-	GTK.gtk_cell_layout_set_attributes (handle, textRenderer, OS.text, 0, 0);
-
-	/*
-	* Feature in GTK. Toggle button creation differs between GTK versions. The
-	* fix is to call size_request() to force the creation of the button
-	* for those versions of GTK that defer the creation.
-	*/
-	menuHandle = findMenuHandle();
-	if (menuHandle != 0) OS.g_object_ref (menuHandle);
-	buttonHandle = findButtonHandle ();
-	if (buttonHandle != 0) OS.g_object_ref (buttonHandle);
-	if (buttonBoxHandle != 0) OS.g_object_ref (buttonBoxHandle);
-	if (cellHandle != 0) cellBoxHandle = GTK.gtk_widget_get_parent(cellHandle);
-	if (cellBoxHandle != 0) OS.g_object_ref(cellBoxHandle);
-	/*
-	* Feature in GTK. By default, read only combo boxes
-	* process the RETURN key rather than allowing the
-	* default button to process the key. The fix is to
-	* clear the GTK_RECEIVES_DEFAULT flag.
-	*/
-	if ((style & SWT.READ_ONLY) != 0 && buttonHandle != 0) {
-		GTK.gtk_widget_set_receives_default (buttonHandle, false);
-	}
-	/*
-	 * Find the arrowHandle, which is the handle belonging to the GtkIcon
-	 * drop down arrow. See bug 539367.
-	 */
-	if ((style & SWT.READ_ONLY) != 0) {
-		if (cellBoxHandle != 0) arrowHandle = findArrowHandle();
-	}
 	// In GTK 3 font description is inherited from parent widget which is not how SWT has always worked,
 	// reset to default font to get the usual behavior
 	setFontDescription(defaultFont().handle);
@@ -700,7 +775,15 @@ long findButtonHandle() {
 	*/
 	long result = 0;
 
-	if (GTK.GTK4) {
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		// GTK4 GtkDropDown: direct child is a GtkToggleButton
+		for (long child = GTK4.gtk_widget_get_first_child(handle); child != 0; child = GTK4.gtk_widget_get_next_sibling(child)) {
+			if (GTK.GTK_IS_BUTTON(child)) {
+				result = child;
+				break;
+			}
+		}
+	} else if (GTK.GTK4) {
 		for (long child = GTK4.gtk_widget_get_first_child(handle); child != 0; child = GTK4.gtk_widget_get_next_sibling(child)) {
 			if (GTK.GTK_IS_BOX(child)) {
 				buttonBoxHandle = child;
@@ -802,7 +885,16 @@ long findMenuHandle() {
 	*/
 	long result = 0;
 
-	if(GTK.GTK4) {
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		// GTK4 GtkDropDown: find the GtkPopover child
+		for (long child = GTK4.gtk_widget_get_first_child(handle); child != 0; child = GTK4.gtk_widget_get_next_sibling(child)) {
+			String name = display.gtk_widget_get_name(child);
+			if (name != null && name.contains("GtkPopover")) {
+				result = child;
+				break;
+			}
+		}
+	} else if (GTK.GTK4) {
 		for (long child = GTK4.gtk_widget_get_first_child(handle); child != 0; child = GTK4.gtk_widget_get_next_sibling(child)) {
 			String name = display.gtk_widget_get_name(child);
 			if (name != null && name.equals("GtkTreePopover")) {
@@ -890,7 +982,13 @@ boolean hasFocus () {
 @Override
 void hookEvents () {
 	super.hookEvents ();
-	OS.g_signal_connect_closure (handle, OS.changed, display.getClosure (CHANGED), true);
+
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		// GTK4 GtkDropDown: use notify::selected instead of changed
+		OS.g_signal_connect(handle, OS.notify_selected, display.notifyProc, NOTIFY_SELECTED);
+	} else {
+		OS.g_signal_connect_closure(handle, OS.changed, display.getClosure(CHANGED), true);
+	}
 
 	if (entryHandle != 0) {
 		OS.g_signal_connect_closure (entryHandle, OS.changed, display.getClosure (CHANGED), true);
@@ -980,6 +1078,12 @@ public void deselect (int index) {
 	checkWidget();
 	if (index < 0 || index >= items.length) return;
 
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		if (GTK4.gtk_drop_down_get_selected(handle) == index) {
+			clearText();
+		}
+		return;
+	}
 	if (GTK.gtk_combo_box_get_active (handle) == index) {
 		clearText ();
 	}
@@ -1245,6 +1349,9 @@ public String[] getItems() {
  */
 public boolean getListVisible () {
 	checkWidget ();
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		return menuHandle != 0 && GTK.gtk_widget_get_visible(menuHandle);
+	}
 	return popupHandle != 0 && GTK.gtk_widget_get_visible (popupHandle);
 }
 
@@ -1293,7 +1400,7 @@ public Point getSelection () {
 	checkWidget ();
 	if ((style & SWT.READ_ONLY) != 0) {
 		int length = 0;
-		int index = GTK.gtk_combo_box_get_active (handle);
+		int index = getSelectionIndex();
 		if (index != -1) length = getItem (index).length ();
 		return new Point (0, length);
 	}
@@ -1321,6 +1428,11 @@ public Point getSelection () {
  */
 public int getSelectionIndex () {
 	checkWidget();
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		int index = GTK4.gtk_drop_down_get_selected(handle);
+		// GTK_INVALID_LIST_POSITION (0xFFFFFFFF) becomes -1 as signed int
+		return (index >= 0 && index < items.length) ? index : -1;
+	}
 	return GTK.gtk_combo_box_get_active (handle);
 }
 
@@ -1339,6 +1451,10 @@ public int getSelectionIndex () {
 public String getText () {
 	checkWidget();
 
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		int index = getSelectionIndex();
+		return index != -1 ? getItem(index) : "";
+	}
 	if (entryHandle != 0) {
 		long str = 0;
 		if (GTK.GTK4) {
@@ -1505,6 +1621,19 @@ long gtk_changed (long widget) {
 		postEvent (SWT.Modify);
 	} else {
 		sendEvent (SWT.Modify);
+	}
+	return 0;
+}
+
+@Override
+long gtk_notify_selected(long object, long arg0) {
+	// GTK4: Handles notify::selected signal from GtkDropDown (READ_ONLY combos)
+	unselected = false;
+	int index = GTK4.gtk_drop_down_get_selected(handle);
+	sendEvent(SWT.Modify);
+	if (isDisposed()) return 0;
+	if (index >= 0) {
+		sendSelectionEvent(SWT.Selection);
 	}
 	return 0;
 }
@@ -2001,6 +2130,11 @@ void releaseHandle () {
 		OS.g_object_unref (cellBoxHandle);
 		cellBoxHandle = 0;
 	}
+	if (stringListHandle != 0) {
+		OS.g_object_unref(stringListHandle);
+		stringListHandle = 0;
+		gtk4ItemCount = 0;
+	}
 	entryHandle = 0;
 
 	if (cssProvider != 0) {
@@ -2040,6 +2174,12 @@ public void remove (int index) {
 	System.arraycopy (oldItems, 0, newItems, 0, index);
 	System.arraycopy (oldItems, index + 1, newItems, index, oldItems.length - index - 1);
 	items = newItems;
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		if (GTK4.gtk_drop_down_get_selected(handle) == index) clearText();
+		GTK4.gtk_string_list_remove(stringListHandle, index);
+		gtk4ItemCount--;
+		return;
+	}
 	if (GTK.gtk_combo_box_get_active (handle) == index) clearText ();
 	if (handle != 0) GTK.gtk_combo_box_text_remove(handle, index);
 }
@@ -2071,6 +2211,17 @@ public void remove (int start, int end) {
 	System.arraycopy (oldItems, 0, newItems, 0, start);
 	System.arraycopy (oldItems, end + 1, newItems, start, oldItems.length - end - 1);
 	items = newItems;
+
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		int index = GTK4.gtk_drop_down_get_selected(handle);
+		if (start <= index && index <= end) clearText();
+		// Remove items in reverse order to preserve indices
+		for (int i = end; i >= start; i--) {
+			GTK4.gtk_string_list_remove(stringListHandle, i);
+			gtk4ItemCount--;
+		}
+		return;
+	}
 	int index = GTK.gtk_combo_box_get_active (handle);
 	if (start <= index && index <= end) clearText();
 
@@ -2237,6 +2388,17 @@ public void removeVerifyListener (VerifyListener listener) {
 public void select (int index) {
 	checkWidget();
 	if (index < 0 || index >= items.length) return;
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		int selected = GTK4.gtk_drop_down_get_selected(handle);
+		OS.g_signal_handlers_block_matched(handle, OS.G_SIGNAL_MATCH_DATA, 0, 0, 0, 0, NOTIFY_SELECTED);
+		GTK4.gtk_drop_down_set_selected(handle, index);
+		OS.g_signal_handlers_unblock_matched(handle, OS.G_SIGNAL_MATCH_DATA, 0, 0, 0, 0, NOTIFY_SELECTED);
+		if (selected != index) {
+			sendEvent(SWT.Modify);
+		}
+		unselected = false;
+		return;
+	}
 	int selected = GTK.gtk_combo_box_get_active (handle);
 	OS.g_signal_handlers_block_matched (handle, OS.G_SIGNAL_MATCH_DATA, 0, 0, 0, 0, CHANGED);
 	GTK.gtk_combo_box_set_active (handle, index);
@@ -2373,6 +2535,24 @@ public void setItem (int index, String string) {
 		error (SWT.ERROR_INVALID_ARGUMENT);
 	}
 	items [index] = string;
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		// For GtkStringList: remove old item and insert new one
+		GTK4.gtk_string_list_remove(stringListHandle, index);
+		gtk4ItemCount--;
+		// Now re-insert at the same position using the already-updated items[]
+		// Since gtk4ItemCount is now items.length - 1, the new item goes at index
+		if (index == gtk4ItemCount) {
+			// Insert at end
+			byte[] buffer = Converter.wcsToMbcs(string, true);
+			GTK4.gtk_string_list_append(stringListHandle, buffer);
+			gtk4ItemCount++;
+		} else {
+			// Insert in middle: rebuild
+			gtk4ItemCount++; // restore count temporarily for rebuild
+			gtk4RebuildStringList();
+		}
+		return;
+	}
 	if (handle != 0) {
 		GTK.gtk_combo_box_text_remove (handle, index);
 	}
@@ -2381,6 +2561,7 @@ public void setItem (int index, String string) {
 	if ((style & SWT.RIGHT_TO_LEFT) != 0 && popupHandle != 0) {
 		GTK3.gtk_container_forall (popupHandle, display.setDirectionProc, GTK.GTK_TEXT_DIR_RTL);
 	}
+
 }
 
 /**
@@ -2418,6 +2599,10 @@ public void setItems (String... items) {
 }
 
 private void gtk_combo_box_text_remove_all() {
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		gtk4ClearStringList();
+		return;
+	}
 	gtk_combo_box_toggle_wrap(false);
 	if (handle != 0) GTK.gtk_combo_box_text_remove_all(handle);
 	gtk_combo_box_toggle_wrap(true);
@@ -2443,6 +2628,16 @@ private void gtk_combo_box_text_remove_all() {
  */
 public void setListVisible (boolean visible) {
 	checkWidget ();
+	if (GTK.GTK4 && (style & SWT.READ_ONLY) != 0 && stringListHandle != 0) {
+		// For GtkDropDown, toggle the popup by activating the toggle button
+		if (buttonHandle != 0) {
+			boolean currentlyActive = GTK.gtk_toggle_button_get_active(buttonHandle);
+			if (currentlyActive != visible) {
+				GTK.gtk_toggle_button_set_active(buttonHandle, visible);
+			}
+		}
+		return;
+	}
 	if (visible) {
 		GTK.gtk_combo_box_popup (handle);
 	} else {
