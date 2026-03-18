@@ -1118,4 +1118,299 @@ public class GTK4 {
 	 * @param renderNode cast=(GskRenderNode *)
 	 */
 	public static final native void gsk_render_node_unref(long renderNode);
+
+	/* GtkStringList (GTK 4.0+) */
+	/** @param strings cast=(const char * const *) */
+	public static final native long gtk_string_list_new(long strings);
+	/**
+	 * @param self cast=(GtkStringList *)
+	 * @param string cast=(const char *)
+	 */
+	public static final native void gtk_string_list_append(long self, byte[] string);
+	/**
+	 * @param self cast=(GtkStringList *)
+	 * @param position cast=(guint)
+	 */
+	public static final native void gtk_string_list_remove(long self, int position);
+	/**
+	 * @param self cast=(GtkStringList *)
+	 * @param position cast=(guint)
+	 * @param n_removals cast=(guint)
+	 * @param additions cast=(const char * const *)
+	 */
+	public static final native void gtk_string_list_splice(long self, int position, int n_removals, long additions);
+	/**
+	 * @param self cast=(GtkStringList *)
+	 * @param position cast=(guint)
+	 */
+	public static final native long gtk_string_list_get_string(long self, int position);
+
+	/* GtkStringObject (GTK 4.0+) */
+	/** @param object cast=(GtkStringObject *) */
+	public static final native long gtk_string_object_get_string(long object);
+
+	/* GtkSingleSelection (GTK 4.0+) */
+	/** @param model cast=(GListModel *) */
+	public static final native long gtk_single_selection_new(long model);
+	/** @param self cast=(GtkSingleSelection *) */
+	public static final native int gtk_single_selection_get_selected(long self);
+	/**
+	 * @param self cast=(GtkSingleSelection *)
+	 * @param position cast=(guint)
+	 */
+	public static final native void gtk_single_selection_set_selected(long self, int position);
+	/**
+	 * @param self cast=(GtkSingleSelection *)
+	 * @param autoselect cast=(gboolean)
+	 */
+	public static final native void gtk_single_selection_set_autoselect(long self, boolean autoselect);
+	/**
+	 * @param self cast=(GtkSingleSelection *)
+	 * @param can_unselect cast=(gboolean)
+	 */
+	public static final native void gtk_single_selection_set_can_unselect(long self, boolean can_unselect);
+
+	/* GtkMultiSelection (GTK 4.0+) */
+	/** @param model cast=(GListModel *) */
+	public static final native long gtk_multi_selection_new(long model);
+
+	/* GtkNoSelection (GTK 4.0+) */
+	/** @param model cast=(GListModel *) */
+	public static final native long gtk_no_selection_new(long model);
+
+	/* GtkSelectionModel (GTK 4.0+) */
+	/**
+	 * @param model cast=(GtkSelectionModel *)
+	 * @param position cast=(guint)
+	 * @param unselect_rest cast=(gboolean)
+	 */
+	public static final native boolean gtk_selection_model_select_item(long model, int position, boolean unselect_rest);
+	/**
+	 * @param model cast=(GtkSelectionModel *)
+	 * @param position cast=(guint)
+	 */
+	public static final native boolean gtk_selection_model_unselect_item(long model, int position);
+	/**
+	 * @param model cast=(GtkSelectionModel *)
+	 * @param position cast=(guint)
+	 * @param n_items cast=(guint)
+	 * @param unselect_rest cast=(gboolean)
+	 */
+	public static final native boolean gtk_selection_model_select_range(long model, int position, int n_items, boolean unselect_rest);
+	/**
+	 * @param model cast=(GtkSelectionModel *)
+	 * @param position cast=(guint)
+	 * @param n_items cast=(guint)
+	 */
+	public static final native boolean gtk_selection_model_unselect_range(long model, int position, int n_items);
+	/** @param model cast=(GtkSelectionModel *) */
+	public static final native boolean gtk_selection_model_select_all(long model);
+	/** @param model cast=(GtkSelectionModel *) */
+	public static final native boolean gtk_selection_model_unselect_all(long model);
+	/** @param model cast=(GtkSelectionModel *) */
+	public static final native long gtk_selection_model_get_selection(long model);
+	/**
+	 * @param model cast=(GtkSelectionModel *)
+	 * @param position cast=(guint)
+	 */
+	public static final native boolean gtk_selection_model_is_selected(long model, int position);
+
+	/* GtkBitset (GTK 4.0+) */
+	/** @param self cast=(const GtkBitset *) */
+	public static final native long gtk_bitset_get_size(long self);
+	/**
+	 * @param self cast=(const GtkBitset *)
+	 * @param nth cast=(guint)
+	 */
+	public static final native int gtk_bitset_get_nth(long self, int nth);
+	/**
+	 * @param self cast=(const GtkBitset *)
+	 * @param value cast=(guint)
+	 */
+	public static final native boolean gtk_bitset_contains(long self, int value);
+	/** @param self cast=(GtkBitset *) */
+	public static final native void gtk_bitset_unref(long self);
+
+	/* GtkSignalListItemFactory (GTK 4.0+) */
+	public static final native long gtk_signal_list_item_factory_new();
+
+	/* GtkListItem (GTK 4.0+) */
+	/** @param list_item cast=(GtkListItem *) */
+	public static final native long gtk_list_item_get_item(long list_item);
+	/** @param list_item cast=(GtkListItem *) */
+	public static final native long gtk_list_item_get_child(long list_item);
+	/**
+	 * @param list_item cast=(GtkListItem *)
+	 * @param child cast=(GtkWidget *)
+	 */
+	public static final native void gtk_list_item_set_child(long list_item, long child);
+	/** @param list_item cast=(GtkListItem *) */
+	public static final native int gtk_list_item_get_position(long list_item);
+
+	/* GtkListView (GTK 4.0+) */
+	/**
+	 * @param model cast=(GtkSelectionModel *)
+	 * @param factory cast=(GtkListItemFactory *)
+	 */
+	public static final native long gtk_list_view_new(long model, long factory);
+	/**
+	 * @param list_view cast=(GtkListView *)
+	 * @param model cast=(GtkSelectionModel *)
+	 */
+	public static final native void gtk_list_view_set_model(long list_view, long model);
+	/** @param list_view cast=(GtkListView *) */
+	public static final native long gtk_list_view_get_model(long list_view);
+	/**
+	 * @param list_view cast=(GtkListView *)
+	 * @param single_click_activate cast=(gboolean)
+	 */
+	public static final native void gtk_list_view_set_single_click_activate(long list_view, boolean single_click_activate);
+	/**
+	 * @param list_view cast=(GtkListView *)
+	 * @param enable_rubberband cast=(gboolean)
+	 */
+	public static final native void gtk_list_view_set_enable_rubberband(long list_view, boolean enable_rubberband);
+	/**
+	 * @method flags=dynamic
+	 * @param list_view cast=(GtkListView *)
+	 * @param pos cast=(guint)
+	 * @param flags cast=(GtkListScrollFlags)
+	 * @param scroll cast=(GtkScrollInfo *)
+	 */
+	public static final native void gtk_list_view_scroll_to(long list_view, int pos, int flags, long scroll);
+
+	/* GtkColumnView (GTK 4.0+) */
+	/** @param model cast=(GtkSelectionModel *) */
+	public static final native long gtk_column_view_new(long model);
+	/**
+	 * @param column_view cast=(GtkColumnView *)
+	 * @param model cast=(GtkSelectionModel *)
+	 */
+	public static final native void gtk_column_view_set_model(long column_view, long model);
+	/** @param column_view cast=(GtkColumnView *) */
+	public static final native long gtk_column_view_get_model(long column_view);
+	/**
+	 * @param column_view cast=(GtkColumnView *)
+	 * @param column cast=(GtkColumnViewColumn *)
+	 */
+	public static final native void gtk_column_view_append_column(long column_view, long column);
+	/**
+	 * @param column_view cast=(GtkColumnView *)
+	 * @param column cast=(GtkColumnViewColumn *)
+	 */
+	public static final native void gtk_column_view_remove_column(long column_view, long column);
+	/**
+	 * @param column_view cast=(GtkColumnView *)
+	 * @param column cast=(GtkColumnViewColumn *)
+	 * @param position cast=(guint)
+	 */
+	public static final native void gtk_column_view_insert_column(long column_view, int position, long column);
+	/**
+	 * @param column_view cast=(GtkColumnView *)
+	 * @param show_column_separators cast=(gboolean)
+	 */
+	public static final native void gtk_column_view_set_show_column_separators(long column_view, boolean show_column_separators);
+	/**
+	 * @param column_view cast=(GtkColumnView *)
+	 * @param show_row_separators cast=(gboolean)
+	 */
+	public static final native void gtk_column_view_set_show_row_separators(long column_view, boolean show_row_separators);
+	/**
+	 * @param column_view cast=(GtkColumnView *)
+	 * @param reorderable cast=(gboolean)
+	 */
+	public static final native void gtk_column_view_set_reorderable(long column_view, boolean reorderable);
+	/** @param column_view cast=(GtkColumnView *) */
+	public static final native long gtk_column_view_get_columns(long column_view);
+	/**
+	 * @method flags=dynamic
+	 * @param column_view cast=(GtkColumnView *)
+	 * @param pos cast=(guint)
+	 * @param column cast=(GtkColumnViewColumn *)
+	 * @param flags cast=(GtkListScrollFlags)
+	 * @param scroll cast=(GtkScrollInfo *)
+	 */
+	public static final native void gtk_column_view_scroll_to(long column_view, int pos, long column, int flags, long scroll);
+
+	/* GtkColumnViewColumn (GTK 4.0+) */
+	/**
+	 * @param title cast=(const char *)
+	 * @param factory cast=(GtkListItemFactory *)
+	 */
+	public static final native long gtk_column_view_column_new(byte[] title, long factory);
+	/**
+	 * @param column cast=(GtkColumnViewColumn *)
+	 * @param factory cast=(GtkListItemFactory *)
+	 */
+	public static final native void gtk_column_view_column_set_factory(long column, long factory);
+	/** @param column cast=(GtkColumnViewColumn *) */
+	public static final native long gtk_column_view_column_get_factory(long column);
+	/**
+	 * @param column cast=(GtkColumnViewColumn *)
+	 * @param visible cast=(gboolean)
+	 */
+	public static final native void gtk_column_view_column_set_visible(long column, boolean visible);
+	/**
+	 * @param column cast=(GtkColumnViewColumn *)
+	 * @param resizable cast=(gboolean)
+	 */
+	public static final native void gtk_column_view_column_set_resizable(long column, boolean resizable);
+	/**
+	 * @param column cast=(GtkColumnViewColumn *)
+	 * @param fixed_width cast=(int)
+	 */
+	public static final native void gtk_column_view_column_set_fixed_width(long column, int fixed_width);
+	/** @param column cast=(GtkColumnViewColumn *) */
+	public static final native int gtk_column_view_column_get_fixed_width(long column);
+	/**
+	 * @param column cast=(GtkColumnViewColumn *)
+	 * @param title cast=(const char *)
+	 */
+	public static final native void gtk_column_view_column_set_title(long column, byte[] title);
+	/** @param column cast=(GtkColumnViewColumn *) */
+	public static final native long gtk_column_view_column_get_title(long column);
+	/** @param column cast=(GtkColumnViewColumn *) */
+	public static final native long gtk_column_view_column_get_column_view(long column);
+
+	/* GtkColumnViewCell (GTK 4.12+) */
+	/**
+	 * @method flags=dynamic
+	 * @param column_view_cell cast=(GtkColumnViewCell *)
+	 */
+	public static final native int gtk_column_view_cell_get_position(long column_view_cell);
+	/**
+	 * @method flags=dynamic
+	 * @param column_view_cell cast=(GtkColumnViewCell *)
+	 */
+	public static final native long gtk_column_view_cell_get_item(long column_view_cell);
+	/**
+	 * @method flags=dynamic
+	 * @param column_view_cell cast=(GtkColumnViewCell *)
+	 * @param child cast=(GtkWidget *)
+	 */
+	public static final native void gtk_column_view_cell_set_child(long column_view_cell, long child);
+	/**
+	 * @method flags=dynamic
+	 * @param column_view_cell cast=(GtkColumnViewCell *)
+	 */
+	public static final native long gtk_column_view_cell_get_child(long column_view_cell);
+
+	/* GtkLabel extras (for use in list item factories) */
+	/**
+	 * @param self cast=(GtkLabel *)
+	 * @param str cast=(const char *)
+	 */
+	public static final native void gtk_label_set_label(long self, byte[] str);
+	/**
+	 * @param self cast=(GtkLabel *)
+	 * @param str cast=(const char *)
+	 */
+	public static final native void gtk_label_set_label(long self, long str);
+	/** @param self cast=(GtkLabel *) */
+	public static final native long gtk_label_get_label(long self);
+
+	/* GtkListScrollFlags (GTK 4.12+) */
+	public static final int GTK_LIST_SCROLL_NONE = 0;
+	public static final int GTK_LIST_SCROLL_FOCUS = 1 << 0;
+	public static final int GTK_LIST_SCROLL_SELECT = 1 << 1;
 }

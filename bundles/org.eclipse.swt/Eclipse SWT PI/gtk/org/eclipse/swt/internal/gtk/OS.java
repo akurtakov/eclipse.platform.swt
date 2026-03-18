@@ -445,6 +445,7 @@ public class OS extends C {
 	public static final byte[] scroll_event = ascii("scroll-event");
 	public static final byte[] scroll = ascii("scroll");
 	public static final byte[] select = ascii("select");
+	public static final byte[] selection_changed = ascii("selection-changed");	// GTK4 GtkSelectionModel
 	public static final byte[] selection_done = ascii("selection-done");
 	public static final byte[] show = ascii("show");
 	public static final byte[] show_help = ascii("show-help");
@@ -468,6 +469,8 @@ public class OS extends C {
 	public static final byte[] notify_theme_change = ascii("notify::gtk-application-prefer-dark-theme");
 	public static final byte[] response = ascii("response");
 	public static final byte[] compute_size = ascii("compute-size");
+	public static final byte[] setup = ascii("setup");		// GTK4 GtkSignalListItemFactory
+	public static final byte[] bind = ascii("bind");		// GTK4 GtkSignalListItemFactory
 
 	/** Properties */
 	public static final byte[] active = ascii("active");
