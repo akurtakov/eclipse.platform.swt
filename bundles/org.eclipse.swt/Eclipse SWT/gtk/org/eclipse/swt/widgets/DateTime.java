@@ -1738,7 +1738,15 @@ void setBoundsInPixels (int x, int y, int width, int height) {
 		GTK.gtk_widget_get_preferred_size (sizingHandle, null, requisition);
 		int oldHeight = requisition.height; //Entry should not expand vertically. It is single liner.
 
-		int newWidth = width - (down.getSizeInPixels ().x + getGtkBorderPadding ().right);
+		/*
+		 * Use computeSizeInPixels() rather than getSizeInPixels() to get the
+		 * button's preferred width. getSizeInPixels() returns 0 when the ZERO_WIDTH
+		 * flag is set (i.e. before the button has been given its first allocation),
+		 * which would make the entry too wide and cover the button on initial display.
+		 * This is especially visible on GTK4 where the entry background is opaque.
+		 */
+		int buttonWidth = down.computeSizeInPixels (SWT.DEFAULT, SWT.DEFAULT).x;
+		int newWidth = width - (buttonWidth + getGtkBorderPadding ().right);
 		GTK.gtk_widget_set_size_request (sizingHandle, (newWidth >= 0) ? newWidth : 0, oldHeight);
 	}
 
