@@ -1744,9 +1744,16 @@ void setBoundsInPixels (int x, int y, int width, int height) {
 		 * flag is set (i.e. before the button has been given its first allocation),
 		 * which would make the entry too wide and cover the button on initial display.
 		 * This is especially visible on GTK4 where the entry background is opaque.
+		 *
+		 * Use the same border padding formula as setDropDownButtonSize() (both left
+		 * and right) so the entry ends exactly where the button begins. Using only
+		 * padding.right leaves a padding.left-sized overlap between the entry and the
+		 * button, which in GTK4 causes the button to be partially covered and
+		 * unresponsive to clicks.
 		 */
 		int buttonWidth = down.computeSizeInPixels (SWT.DEFAULT, SWT.DEFAULT).x;
-		int newWidth = width - (buttonWidth + getGtkBorderPadding ().right);
+		GtkBorder padding = getGtkBorderPadding ();
+		int newWidth = width - (buttonWidth + padding.left + padding.right);
 		GTK.gtk_widget_set_size_request (sizingHandle, (newWidth >= 0) ? newWidth : 0, oldHeight);
 	}
 
