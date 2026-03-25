@@ -307,6 +307,15 @@ void _setVisible (boolean visible) {
 			long eventPtr = 0;
 			if (ableToSetLocation()) {
 				if (GTK.GTK4) {
+					/*
+					 * Set the pointing rectangle so the popover is anchored at the
+					 * requested coordinates. gtk_popover_set_pointing_to() expects
+					 * coordinates in the parent widget's coordinate space; on GTK4
+					 * these are provided by the gesture handler (widget-relative) or
+					 * by setLocation(). A 1x1 rectangle pins the menu origin to the
+					 * specified point, bringing behaviour closer to the GTK3
+					 * gtk_menu_popup_at_rect() approach used in the else branch below.
+					 */
 					GdkRectangle popoverPosition = new GdkRectangle();
 					popoverPosition.x = x;
 					popoverPosition.y = y;
