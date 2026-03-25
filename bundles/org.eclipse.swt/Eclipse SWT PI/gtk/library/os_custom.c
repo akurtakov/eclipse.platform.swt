@@ -871,14 +871,17 @@ static void swt_fixed_set_property (GObject *object, guint prop_id, const GValue
 }
 
 static void swt_fixed_measure (GtkWidget *widget, GtkOrientation  orientation, int for_size, int *minimum, int *natural, int *minimum_baseline, int *natural_baseline) {
+	int min = 0, nat = 0;
 	for (GtkWidget* child = gtk_widget_get_first_child(widget); child != NULL; child = gtk_widget_get_next_sibling(child)) {
-		int child_nat = 0;
+		int child_min = 0, child_nat = 0;
 
-		gtk_widget_measure(child, orientation, -1, NULL, &child_nat, NULL, NULL);
-		*natural = MAX(*natural, child_nat);
+		gtk_widget_measure(child, orientation, -1, &child_min, &child_nat, NULL, NULL);
+		min = MAX(min, child_min);
+		nat = MAX(nat, child_nat);
 	}
 
-	if (minimum) *minimum = 0;
+	if (minimum) *minimum = min;
+	if (natural) *natural = nat;
 	if (minimum_baseline) *minimum_baseline = -1;
 	if (natural_baseline) *natural_baseline = -1;
 }
@@ -905,6 +908,15 @@ static void swt_fixed_size_allocate (GtkWidget *widget, int width, int height, i
 			gtk_widget_get_preferred_size (child, &requisition, NULL);
 			if (w == -1) w = requisition.width;
 			if (h == -1) h = requisition.height;
+		} else {
+			/* Clamp to the widget's minimum size to avoid allocating below it.
+			 * This can happen when the stored size was set before CSS/theme was
+			 * fully applied (e.g. GtkSearchEntry needs a minimum width for its icons). */
+			int min_w = 0, min_h = 0;
+			gtk_widget_measure(child, GTK_ORIENTATION_HORIZONTAL, -1, &min_w, NULL, NULL, NULL);
+			gtk_widget_measure(child, GTK_ORIENTATION_VERTICAL, -1, &min_h, NULL, NULL, NULL);
+			if (w < min_w) w = min_w;
+			if (h < min_h) h = min_h;
 		}
 
 		child_allocation.width = w;
