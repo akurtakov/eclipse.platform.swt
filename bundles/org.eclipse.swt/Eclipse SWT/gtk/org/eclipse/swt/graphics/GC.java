@@ -660,6 +660,8 @@ void destroy() {
 	/* Free resources */
 	long clipRgn = data.clipRgn;
 	if (clipRgn != 0) Cairo.cairo_region_destroy(clipRgn);
+	long damageRgn = data.damageRgn;
+	if (damageRgn != 0) Cairo.cairo_region_destroy(damageRgn);
 	Image image = data.image;
 	if (image != null) {
 		image.memGC = null;
@@ -672,7 +674,7 @@ void destroy() {
 	if (drawable != null) {
 		drawable.internal_dispose_GC(handle, data);
 	}
-	data.drawable = data.clipRgn = 0;
+	data.drawable = data.clipRgn = data.damageRgn = 0;
 	drawable = null;
 	handle = 0;
 	data.image = null;

@@ -3834,7 +3834,32 @@ void cairoClipRegion (long cairo) {
 	eventRegion = actualRegion;
 }
 
-
+/**
+ * Computes the shell-visible bounds of this widget in widget-local coordinates
+ * as a Cairo region. This is used to restrict GC drawing to the area visible
+ * within the shell, preventing drawing outside the shell window on Wayland
+ * where child widgets are not automatically clipped to the shell bounds.
+ *
+ * @return a newly created Cairo region representing the shell-visible area in
+ *         widget-local coordinates; the caller is responsible for freeing it
+ *         via {@code Cairo.cairo_region_destroy}
+ */
+long computeShellVisibleRegion() {
+	Shell shell = getShell();
+	// Get shell's drawable size from its GdkWindow directly, avoiding forceResize()
+	long shellWindow = shell.paintWindow();
+	int shellWidth = GDK.gdk_window_get_width(shellWindow);
+	int shellHeight = GDK.gdk_window_get_height(shellWindow);
+	// Convert shell's origin (0,0) to widget-local coordinates
+	Point shellDisplayOrigin = shell.toDisplay(0, 0);
+	Point widgetLocalOrigin = toControl(shellDisplayOrigin.x, shellDisplayOrigin.y);
+	cairo_rectangle_int_t r = new cairo_rectangle_int_t();
+	r.x = widgetLocalOrigin.x;
+	r.y = widgetLocalOrigin.y;
+	r.width = shellWidth;
+	r.height = shellHeight;
+	return Cairo.cairo_region_create_rectangle(r);
+}
 
 @Override
 void gtk4_draw(long widget, long cairo, Rectangle bounds) {
@@ -3893,7 +3918,13 @@ long gtk_draw (long widget, long cairo) {
 	 * and clip themselves accordingly. Only relevant on GTK3.10+, see bug 475784.
 	 */
 	if (drawRegion) data.regionSet = eventRegion;
-//	data.damageRgn = gdkEvent.region;
+	/*
+	 * Set the damage region to the shell-visible bounds of this widget. This ensures that
+	 * the initial GC clipping (used by limitClipping) is bounded to the area visible within
+	 * the shell. This prevents drawing outside the shell window on Wayland, where child
+	 * widget drawing is not automatically clipped to the shell bounds by the windowing system.
+	 */
+	data.damageRgn = computeShellVisibleRegion();
 	data.cairo = cairo;
 	GC gc = event.gc = GC.gtk_new (this, data);
 	// Note: use GC#setClipping(x,y,width,height) because GC#setClipping(Rectangle) got broken by bug 446075
