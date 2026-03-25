@@ -2200,6 +2200,16 @@ JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1popover_1menu_1set_1menu_1model)
 }
 #endif
 
+#ifndef NO_gtk_1popover_1present
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1popover_1present)
+	(JNIEnv *env, jclass that, jlong arg0)
+{
+	GTK4_NATIVE_ENTER(env, that, gtk_1popover_1present_FUNC);
+	gtk_popover_present((GtkPopover *)arg0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1popover_1present_FUNC);
+}
+#endif
+
 #ifndef NO_gtk_1popover_1set_1has_1arrow
 JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1popover_1set_1has_1arrow)
 	(JNIEnv *env, jclass that, jlong arg0, jboolean arg1)

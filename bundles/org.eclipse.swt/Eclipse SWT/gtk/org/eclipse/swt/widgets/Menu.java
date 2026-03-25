@@ -337,6 +337,15 @@ void _setVisible (boolean visible) {
 					GTK.gtk_popover_set_pointing_to(handle, popoverPosition);
 
 					GTK.gtk_popover_popup(handle);
+					/*
+					 * Feature in GTK4: SWTFixed's size_allocate only iterates tracked children
+					 * (added via swt_fixed_add). The GtkPopoverMenu is added via
+					 * gtk_widget_set_parent() and is therefore not in SWTFixed's child list, so
+					 * gtk_popover_present() is never called for it during the normal layout pass.
+					 * Calling it here forces the size-allocation step that correctly computes
+					 * available screen space, preventing height constraints that cause a scrollbar.
+					 */
+					GTK4.gtk_popover_present(handle);
 				} else {
 					// Create the GdkEvent manually as we need to control
 					// certain fields like the event window
@@ -385,10 +394,13 @@ void _setVisible (boolean visible) {
 					 * gtk_menu_popup_at_pointer() does not exist in GTK4 and cannot be used.
 					 * Instead, use gtk_popover_popup() directly. Without an explicit
 					 * pointing_to rectangle, GTK4 positions the popover relative to
-					 * parent.handle using the popover's position attribute (GTK_POS_BOTTOM),
-					 * which avoids incorrect height constraints that would cause a scrollbar.
+					 * parent.handle using the popover's position attribute (GTK_POS_BOTTOM).
+					 * gtk_popover_present() is called after popup() to force the size-allocation
+					 * step that SWTFixed's layout omits for popover children, ensuring available
+					 * screen space is correctly computed and no scrollbar appears.
 					 */
 					GTK.gtk_popover_popup(handle);
+					GTK4.gtk_popover_present(handle);
 				} else {
 					/*
 					 *  GTK Feature: gtk_menu_popup is deprecated as of GTK3.22 and the new method gtk_menu_popup_at_pointer

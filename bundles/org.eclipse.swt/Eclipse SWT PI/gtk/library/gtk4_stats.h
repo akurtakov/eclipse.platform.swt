@@ -180,6 +180,7 @@ typedef enum {
 	gtk_1popover_1menu_1bar_1new_1from_1model_FUNC,
 	gtk_1popover_1menu_1new_1from_1model_1full_FUNC,
 	gtk_1popover_1menu_1set_1menu_1model_FUNC,
+	gtk_1popover_1present_FUNC,
 	gtk_1popover_1set_1has_1arrow_FUNC,
 	gtk_1rgb_1to_1hsv_FUNC,
 	gtk_1scrollbar_1get_1adjustment_FUNC,

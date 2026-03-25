@@ -551,6 +551,15 @@ public class GTK4 {
 	/* GtkPopover */
 	/** @param popover cast=(GtkPopover *) */
 	public static final native void gtk_popover_set_has_arrow(long popover, boolean has_arrow);
+	/**
+	 * Allocates a size for the GtkPopover. Must be called after gtk_popover_popup()
+	 * to trigger proper size allocation, since SWTFixed's size_allocate does not
+	 * iterate over popover children set via gtk_widget_set_parent(). Without this
+	 * call, the popover may display with incorrect height constraints (scrollbar).
+	 *
+	 * @param popover cast=(GtkPopover *)
+	 */
+	public static final native void gtk_popover_present(long popover);
 
 	/* GtkPopoverMenuBar */
 	/** @param model cast=(GMenuModel *) */
