@@ -482,6 +482,7 @@ public void test_iconWrappedOnNextLine() {
 public void test_contentRemainsVisibleAfterTabSwitch() {
 	makeCleanEnvironment();
 	shell.setLayout(new FillLayout());
+	shell.setSize(400, 300);
 	SwtTestUtil.openShell(shell);
 
 	// Create two tabs, each with a content control
