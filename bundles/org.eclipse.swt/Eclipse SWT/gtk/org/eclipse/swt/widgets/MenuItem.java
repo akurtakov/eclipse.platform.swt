@@ -1136,6 +1136,12 @@ public void setMenu (Menu menu) {
 		if (menu != null) {
 			menu.cascade = this;
 			OS.g_menu_item_set_submenu(handle, menu.modelHandle);
+			
+			// GTK4: Manually trigger SWT.Show for DROP_DOWN sub-menu
+			// DROP_DOWN menus in GTK4 are GMenuModel objects without widget handles,
+			// so they can't receive show signals. Fire SWT.Show eagerly when the
+			// menu is attached to ensure lazy population happens before display.
+			menu.sendEvent(SWT.Show);
 		} else {
 			oldMenu.cascade = null;
 			OS.g_menu_item_set_submenu(handle, 0);
