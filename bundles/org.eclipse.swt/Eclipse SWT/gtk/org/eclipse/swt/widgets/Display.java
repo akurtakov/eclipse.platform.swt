@@ -6104,7 +6104,19 @@ void leaveProc(long controller, long user_data) {
 }
 
 void computeSizeProc(long toplevel, long size, long user_data) {
-	//TODO: GTK4 - Could be needed for minimum Size, signal remains connected
+	/*
+	 * When the shell is fullscreen, set the size to the full available bounds so
+	 * that GTK4 allocates the entire screen to the window content. Without this,
+	 * GTK4 uses the window's natural (original) size and the shell content appears
+	 * at its original size surrounded by a black area.
+	 */
+	int state = GTK4.gdk_toplevel_get_state(toplevel);
+	if ((state & GDK.GDK_SURFACE_STATE_FULLSCREEN) != 0) {
+		int[] boundsWidth = new int[1];
+		int[] boundsHeight = new int[1];
+		GTK4.gdk_toplevel_size_get_bounds(size, boundsWidth, boundsHeight);
+		GTK4.gdk_toplevel_size_set_size(size, boundsWidth[0], boundsHeight[0]);
+	}
 }
 
 void activateProc(long action, long parameter, long user_data) {
