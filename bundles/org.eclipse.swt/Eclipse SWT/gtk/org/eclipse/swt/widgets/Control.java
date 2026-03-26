@@ -6137,6 +6137,23 @@ public void setVisible (boolean visible) {
 				if (enableWindow != 0) GDK.gdk_window_show_unraised(enableWindow);
 			}
 			gtk_widget_show (topHandle);
+			if (GTK.GTK4) {
+				/*
+				 * Bug in GTK4: when a widget is hidden, GTK4 resets its allocation
+				 * to (0,0,0,0). Simply making the widget visible again does not
+				 * restore the allocation. Force the parent widget to re-run its
+				 * size_allocate so that this widget is properly re-allocated at its
+				 * stored position and size (e.g. CTabFolder content after tab switch).
+				 */
+				long parent = GTK.gtk_widget_get_parent(topHandle);
+				if (parent != 0) {
+					GtkAllocation parentAlloc = new GtkAllocation();
+					GTK.gtk_widget_get_allocation(parent, parentAlloc);
+					if (parentAlloc.width > 0 && parentAlloc.height > 0) {
+						gtk_widget_size_allocate(parent, parentAlloc, -1);
+					}
+				}
+			}
 		}
 	} else {
 		/*

@@ -467,6 +467,63 @@ public void test_iconWrappedOnNextLine() {
 	}
 }
 
+/**
+ * Verify that a CTabFolder's content control remains visible (has a non-zero
+ * size) after switching to another tab and back.
+ *
+ * Regression test for: CTab content on Gtk 4 gets lost after going to another
+ * tab and back to the initial one.
+ *
+ * In GTK4 hidden widgets have their allocation reset to (0,0,0,0). When made
+ * visible again, the parent must be forced to re-run its size_allocate so the
+ * widget is allocated at the correct position/size.
+ */
+@Test
+public void test_contentRemainsVisibleAfterTabSwitch() {
+	makeCleanEnvironment();
+	shell.setLayout(new FillLayout());
+	SwtTestUtil.openShell(shell);
+
+	// Create two tabs, each with a content control
+	CTabItem tab1 = new CTabItem(ctabFolder, SWT.NONE);
+	tab1.setText("Tab 1");
+	Composite content1 = new Composite(ctabFolder, SWT.NONE);
+	content1.setBackground(shell.getDisplay().getSystemColor(SWT.COLOR_GREEN));
+	tab1.setControl(content1);
+
+	CTabItem tab2 = new CTabItem(ctabFolder, SWT.NONE);
+	tab2.setText("Tab 2");
+	Composite content2 = new Composite(ctabFolder, SWT.NONE);
+	content2.setBackground(shell.getDisplay().getSystemColor(SWT.COLOR_BLUE));
+	tab2.setControl(content2);
+
+	// Select the first tab
+	ctabFolder.setSelection(0);
+	processEvents();
+
+	// Content1 must be visible and have a non-zero size
+	assertTrue(content1.isVisible(), "content1 should be visible after selecting tab 1");
+	Rectangle bounds1 = content1.getBounds();
+	assertTrue(bounds1.width > 0 && bounds1.height > 0,
+			"content1 should have non-zero size after selecting tab 1, got: " + bounds1);
+
+	// Switch to second tab
+	ctabFolder.setSelection(1);
+	processEvents();
+
+	// Switch back to first tab
+	ctabFolder.setSelection(0);
+	processEvents();
+
+	// content1 must still be visible with a non-zero size
+	assertTrue(content1.isVisible(), "content1 should still be visible after switching back to tab 1");
+	Rectangle bounds1After = content1.getBounds();
+	assertTrue(bounds1After.width > 0 && bounds1After.height > 0,
+			"content1 should have non-zero size after switching back to tab 1, got: " + bounds1After);
+	assertEquals(bounds1, bounds1After,
+			"content1 bounds should be unchanged after switching tabs");
+}
+
 @Test
 public void test_selectedImageVisible() {
 	createTabFolder(null);
