@@ -509,8 +509,29 @@ long gtk_draw (long widget, long cairo) {
 
 @Override
 void snapshotBackground (long handle, long snapshot) {
-	if (backgroundImage != null) return;
-	long context = GTK.gtk_widget_get_style_context(handle);
+	if ((state & OBSCURED) != 0) return;
+	/*
+	 * Replicate the GTK3 EXPOSE_EVENT_INVERSE behaviour: draw the effective
+	 * background before children are snapshotted.
+	 *
+	 * In GTK4 the SWTFixed widget has no CSS background rule, so
+	 * gtk_render_background() renders nothing. Instead we obtain a Cairo
+	 * context from the snapshot and delegate to drawBackground(), which
+	 * paints the background image or color (falling back to the system
+	 * widget-background colour) directly via Cairo.
+	 *
+	 * Skip when an explicit background color has been set (state & BACKGROUND):
+	 * GTK4 renders the CSS provider background automatically before calling
+	 * the snapshot vfunc.
+	 */
+	Control control = findBackgroundControl ();
+	boolean draw = control != null && control.backgroundImage != null;
+	if (!draw && (state & CANVAS) != 0) {
+		draw = (state & BACKGROUND) == 0;
+	}
+	if (!draw) return;
+
+	if (control == null) control = this;
 	GtkAllocation allocation = new GtkAllocation();
 	GTK.gtk_widget_get_allocation(handle, allocation);
 	int width = (state & ZERO_WIDTH) != 0 ? 0 : allocation.width;
@@ -519,7 +540,8 @@ void snapshotBackground (long handle, long snapshot) {
 	Graphene.graphene_rect_init(rect, 0, 0, width, height);
 	long cairo = GTK4.gtk_snapshot_append_cairo(snapshot, rect);
 	if (cairo != 0) {
-		GTK.gtk_render_background(context, cairo, 0, 0, width, height);
+		drawBackground(control, 0, cairo, 0, 0, width, height);
+		Cairo.cairo_destroy(cairo);
 	}
 	Graphene.graphene_rect_free(rect);
 }
