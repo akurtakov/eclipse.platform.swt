@@ -507,6 +507,22 @@ long gtk_draw (long widget, long cairo) {
 	return super.gtk_draw(widget, cairo);
 }
 
+@Override
+void snapshotBackground (long handle, long snapshot) {
+	if (backgroundImage != null) return;
+	long context = GTK.gtk_widget_get_style_context(handle);
+	GtkAllocation allocation = new GtkAllocation();
+	GTK.gtk_widget_get_allocation(handle, allocation);
+	int width = (state & ZERO_WIDTH) != 0 ? 0 : allocation.width;
+	int height = (state & ZERO_HEIGHT) != 0 ? 0 : allocation.height;
+	long rect = Graphene.graphene_rect_alloc();
+	Graphene.graphene_rect_init(rect, 0, 0, width, height);
+	long cairo = GTK4.gtk_snapshot_append_cairo(snapshot, rect);
+	if (cairo != 0) {
+		GTK.gtk_render_background(context, cairo, 0, 0, width, height);
+	}
+	Graphene.graphene_rect_free(rect);
+}
 
 @Override
 boolean mustBeVisibleOnInitBounds() {
