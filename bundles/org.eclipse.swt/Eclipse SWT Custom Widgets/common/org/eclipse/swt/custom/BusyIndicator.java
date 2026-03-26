@@ -106,8 +106,21 @@ public class BusyIndicator {
 			} else {
 				Integer busyId = setBusyCursor(display);
 				try {
+					// Install a timer as a safety net to periodically wake the event loop in case
+					// the primary wake signal is lost (e.g. due to a known GTK bug where
+					// g_main_context_wakeup() may fail to wake the polling function)
+					int wakeTime = 10;
+					display.timerExec(wakeTime, new Runnable() {
+						@Override
+						public void run() {
+							if (!future.isDone() && !display.isDisposed()) {
+								display.timerExec(wakeTime, this);
+							}
+						}
+					});
 					if (future instanceof CompletionStage<?> stage) {
-						// let us wake up from sleep once the future is done
+						// For CompletionStage, also register a completion handler for immediate wakeup
+						// when the future completes, providing minimal latency in addition to the timer
 						stage.handle((nil1, nil2) -> {
 							if (!display.isDisposed()) {
 								try {
@@ -118,19 +131,6 @@ public class BusyIndicator {
 								}
 							}
 							return null;
-						});
-					} else {
-						// for plain features we need to use a workaround, we install a timer every
-						// few ms, that should be short enough to not be noticeable by the user and long
-						// enough to not burn more CPU time than necessary
-						int wakeTime = 10;
-						display.timerExec(wakeTime, new Runnable() {
-							@Override
-							public void run() {
-								if (!future.isDone() && !display.isDisposed()) {
-									display.timerExec(wakeTime, this);
-								}
-							}
 						});
 					}
 					while (!future.isDone() && !display.isDisposed()) {
