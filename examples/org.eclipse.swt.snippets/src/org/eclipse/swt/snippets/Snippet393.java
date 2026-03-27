@@ -16,7 +16,7 @@ package org.eclipse.swt.snippets;
 /*
  * Simulate Eclipse fast views: views minimized to icons in a vertical side
  * toolbar that expand as floating panels when clicked, and auto-hide when
- * the panel loses focus.
+ * the user clicks elsewhere.
  *
  * For a list of all SWT example snippets see
  * http://www.eclipse.org/swt/snippets/
@@ -30,7 +30,7 @@ public class Snippet393 {
 
 	static final int FAST_VIEW_WIDTH = 260;
 	static final int FAST_VIEW_HEIGHT = 220;
-	static Shell[] fastViewShells;
+	static Composite[] fastViewPanels;
 	static ToolItem[] toolItems;
 
 	public static void main(String[] args) {
@@ -43,8 +43,21 @@ public class Snippet393 {
 		ToolBar toolBar = new ToolBar(shell, SWT.FLAT | SWT.VERTICAL);
 
 		String[] viewNames = { "Package Explorer", "Console", "Outline" };
-		fastViewShells = new Shell[viewNames.length];
+		fastViewPanels = new Composite[viewNames.length];
 		toolItems = new ToolItem[viewNames.length];
+
+		// Main content area: null layout so fast view overlays can be placed
+		// inside it via setBounds() without a layout manager interfering.
+		Composite main = new Composite(shell, SWT.NONE);
+		Text editor = new Text(main, SWT.MULTI | SWT.V_SCROLL | SWT.WRAP);
+		editor.setText("Main editor area.\n\n"
+				+ "Click the buttons in the left toolbar to show fast views.\n"
+				+ "Fast views auto-hide when you click elsewhere.");
+		// Keep the editor filling main whenever main is resized
+		main.addListener(SWT.Resize, e -> {
+			Rectangle c = main.getClientArea();
+			editor.setBounds(0, 0, c.width, c.height);
+		});
 
 		for (int i = 0; i < viewNames.length; i++) {
 			final int index = i;
@@ -53,23 +66,27 @@ public class Snippet393 {
 			item.setToolTipText(viewNames[i]);
 			toolItems[i] = item;
 
-			// Floating fast view panel (child shell, no title bar)
-			Shell fastView = new Shell(shell, SWT.BORDER | SWT.ON_TOP);
-			fastView.setVisible(false);
-			fastView.setLayout(new GridLayout());
-			fastViewShells[i] = fastView;
+			// Fast view panel as an overlay Composite inside 'main'.
+			// Being a child of 'main' (which has no layout manager) means
+			// the shell's FormLayout never touches these panels, so manual
+			// setBounds() positioning is preserved. This also avoids any
+			// dependency on Shell.setLocation(), which is a no-op on GTK4.
+			Composite panel = new Composite(main, SWT.BORDER);
+			panel.setVisible(false);
+			panel.setLayout(new GridLayout());
+			fastViewPanels[i] = panel;
 
 			// View title
-			Label titleLabel = new Label(fastView, SWT.NONE);
+			Label titleLabel = new Label(panel, SWT.NONE);
 			titleLabel.setText(viewNames[i]);
 
 			// Separator below title
-			Label sep = new Label(fastView, SWT.SEPARATOR | SWT.HORIZONTAL);
+			Label sep = new Label(panel, SWT.SEPARATOR | SWT.HORIZONTAL);
 			sep.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 
 			// View-specific content
 			if (i == 0) {
-				Tree tree = new Tree(fastView, SWT.BORDER | SWT.V_SCROLL);
+				Tree tree = new Tree(panel, SWT.BORDER | SWT.V_SCROLL);
 				tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 				TreeItem project = new TreeItem(tree, SWT.NONE);
 				project.setText("MyProject");
@@ -80,11 +97,11 @@ public class Snippet393 {
 				project.setExpanded(true);
 				src.setExpanded(true);
 			} else if (i == 1) {
-				Text text = new Text(fastView, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.READ_ONLY);
+				Text text = new Text(panel, SWT.BORDER | SWT.MULTI | SWT.V_SCROLL | SWT.READ_ONLY);
 				text.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 				text.setText("Console output:\nBuild successful.\n> Running tests...");
 			} else {
-				List list = new List(fastView, SWT.BORDER | SWT.V_SCROLL);
+				List list = new List(panel, SWT.BORDER | SWT.V_SCROLL);
 				list.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 				list.add("class MyClass");
 				list.add("  field: name : String");
@@ -92,34 +109,32 @@ public class Snippet393 {
 				list.add("  method: stop()");
 			}
 
-			// Auto-hide the panel when it loses focus.
-			// asyncExec defers the check so that a toolbar-button click (which
-			// first triggers Deactivate and then Selection) can hide the panel
-			// via the Selection listener without a race.
-			fastView.addListener(SWT.Deactivate, e -> display.asyncExec(() -> {
-				if (!fastViewShells[index].isDisposed() && fastViewShells[index].isVisible()) {
-					fastViewShells[index].setVisible(false);
-					toolItems[index].setSelection(false);
-				}
-			}));
-
 			// Toggle the fast view panel on toolbar button click
 			item.addListener(SWT.Selection, e -> {
 				if (item.getSelection()) {
-					showFastView(shell, toolBar, index);
+					showFastView(toolBar, main, index);
 				} else {
-					fastViewShells[index].setVisible(false);
+					fastViewPanels[index].setVisible(false);
 				}
 			});
 		}
 
-		// Main content area filling the rest of the shell
-		Composite main = new Composite(shell, SWT.NONE);
-		main.setLayout(new FillLayout());
-		Text editor = new Text(main, SWT.MULTI | SWT.V_SCROLL | SWT.WRAP);
-		editor.setText("Main editor area.\n\n"
-				+ "Click the buttons in the left toolbar to show fast views.\n"
-				+ "Fast views auto-hide when you click elsewhere.");
+		// Auto-hide: when the user clicks outside a fast view panel, hide it.
+		// The panel is hidden synchronously; the ToolItem deselection is deferred
+		// with asyncExec so it does not interfere with SWT's own CHECK-item toggle.
+		display.addFilter(SWT.MouseDown, e -> {
+			if (!(e.widget instanceof Control clicked)) return;
+			for (int i = 0; i < fastViewPanels.length; i++) {
+				Composite panel = fastViewPanels[i];
+				if (panel.isDisposed() || !panel.isVisible()) continue;
+				if (isDescendant(clicked, panel)) continue;
+				panel.setVisible(false);
+				final int idx = i;
+				display.asyncExec(() -> {
+					if (!toolItems[idx].isDisposed()) toolItems[idx].setSelection(false);
+				});
+			}
+		});
 
 		// Toolbar on the left; main content fills the remainder
 		FormData tbData = new FormData();
@@ -146,23 +161,41 @@ public class Snippet393 {
 		display.dispose();
 	}
 
-	/** Position and open the fast view panel for the given index. */
-	static void showFastView(Shell parent, ToolBar toolBar, int index) {
-		// Close any other open fast view
-		for (int i = 0; i < fastViewShells.length; i++) {
+	/** Returns true if {@code control} is within (or is) the given {@code ancestor}. */
+	static boolean isDescendant(Control control, Composite ancestor) {
+		while (control != null) {
+			if (control == ancestor) return true;
+			control = control.getParent();
+		}
+		return false;
+	}
+
+	/**
+	 * Position and reveal the fast view panel for the given index.
+	 * <p>
+	 * The panel is a child of {@code main}, so coordinates are relative to
+	 * {@code main}'s client area — no {@code toDisplay()} call is needed and
+	 * the code works correctly on both GTK3 and GTK4.
+	 */
+	static void showFastView(ToolBar toolBar, Composite main, int index) {
+		// Close any other open fast views
+		for (int i = 0; i < fastViewPanels.length; i++) {
 			if (i != index) {
-				fastViewShells[i].setVisible(false);
+				fastViewPanels[i].setVisible(false);
 				toolItems[i].setSelection(false);
 			}
 		}
-		// Place the panel to the right of the toolbar, aligned with the item
-		Shell fastView = fastViewShells[index];
+		// Toolbar y-offset of the clicked item, converted to main's coordinate space.
+		// Both toolBar and main share the same parent (the shell), so the y-origin
+		// of main within the shell is subtracted to get main-relative y.
 		Rectangle tbBounds = toolBar.getBounds();
-		Point origin = parent.toDisplay(tbBounds.x + tbBounds.width, tbBounds.y);
+		Rectangle mainBounds = main.getBounds();
 		Rectangle itemBounds = toolItems[index].getBounds();
-		fastView.setSize(FAST_VIEW_WIDTH, FAST_VIEW_HEIGHT);
-		fastView.setLocation(origin.x, origin.y + itemBounds.y);
-		fastView.open();
-		fastView.forceFocus();
+		int x = 0; // left edge of main
+		int y = (tbBounds.y + itemBounds.y) - mainBounds.y;
+		fastViewPanels[index].setBounds(x, y, FAST_VIEW_WIDTH, FAST_VIEW_HEIGHT);
+		fastViewPanels[index].moveAbove(null); // raise above editor and other siblings
+		fastViewPanels[index].setVisible(true);
+		fastViewPanels[index].setFocus();
 	}
 }
