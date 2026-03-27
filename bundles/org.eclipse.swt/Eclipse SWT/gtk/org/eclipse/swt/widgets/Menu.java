@@ -849,10 +849,70 @@ private void connectDropDownMenuSignals() {
 				display.addWidget(popover, menuItem.menu);
 				OS.g_signal_connect_closure_by_id(popover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
 				OS.g_signal_connect_closure_by_id(popover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+				/*
+				 * Also connect SHOW/HIDE signals for nested CASCADE submenus within
+				 * this DROP_DOWN menu. In GTK4 NESTED mode, each CASCADE item's submenu
+				 * is represented by a GtkPopoverMenu child within the parent popover's
+				 * widget tree. These need signal connections so that SWT.Show/SWT.Hide
+				 * events fire correctly (e.g. for lazy menu population).
+				 */
+				connectCascadeSubMenuSignals(menuItem.menu);
 			}
 		}
 		barItem = GTK4.gtk_widget_get_next_sibling(barItem);
 	}
+}
+
+/**
+ * Recursively connects SHOW/HIDE signals for nested CASCADE submenu popovers
+ * within the given menu's popover widget tree. In GTK4 NESTED mode, each
+ * CASCADE item's submenu appears as a GtkPopoverMenu child of the parent's
+ * GtkModelButton. This method finds those widgets and registers them so that
+ * SWT.Show and SWT.Hide events are fired for submenu MenuListeners.
+ *
+ * @param menu the DROP_DOWN menu whose CASCADE submenus need signal connections
+ */
+private void connectCascadeSubMenuSignals(Menu menu) {
+	if (menu == null || menu.popoverHandle == 0 || menu.items == null) return;
+	for (MenuItem item : menu.items) {
+		if ((item.style & SWT.CASCADE) != 0 && item.menu != null && item.menu.popoverHandle == 0) {
+			long nestedPopover = findNestedPopoverForModel(menu.popoverHandle, item.menu.modelHandle);
+			if (nestedPopover != 0) {
+				item.menu.popoverHandle = nestedPopover;
+				display.addWidget(nestedPopover, item.menu);
+				OS.g_signal_connect_closure_by_id(nestedPopover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
+				OS.g_signal_connect_closure_by_id(nestedPopover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+				// Recurse to handle further nested CASCADE submenus
+				connectCascadeSubMenuSignals(item.menu);
+			}
+		}
+	}
+}
+
+/**
+ * Recursively searches the widget subtree rooted at {@code parentWidget} for
+ * a GtkPopoverMenu whose GMenuModel matches {@code targetModel}. Used to locate
+ * the nested GtkPopoverMenu that GTK4 creates internally for a CASCADE submenu.
+ *
+ * @param parentWidget the root widget to search from
+ * @param targetModel  the GMenuModel pointer (SWT submenu's modelHandle) to match
+ * @return the matching GtkPopoverMenu handle, or 0 if not found
+ */
+private long findNestedPopoverForModel(long parentWidget, long targetModel) {
+	if (parentWidget == 0 || targetModel == 0) return 0;
+	long child = GTK4.gtk_widget_get_first_child(parentWidget);
+	while (child != 0) {
+		if (GTK4.GTK_IS_POPOVER_MENU(child)) {
+			long model = GTK4.gtk_popover_menu_get_menu_model(child);
+			if (model == targetModel) {
+				return child;
+			}
+		}
+		long found = findNestedPopoverForModel(child, targetModel);
+		if (found != 0) return found;
+		child = GTK4.gtk_widget_get_next_sibling(child);
+	}
+	return 0;
 }
 
 private long findGtkPopoverMenuChild(long barItem) {
