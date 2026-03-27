@@ -3103,11 +3103,15 @@ void showWidget () {
 			display.activePending = true;
 		}
 
-		if (GTK.GTK4) {
-			for (long child = GTK4.gtk_widget_get_first_child(shellHandle); child != 0; child = GTK4.gtk_widget_get_next_sibling(child)) {
-				GTK.gtk_widget_unparent(child);
-			}
-		} else {
+		if (!GTK.GTK4) {
+			/*
+			 * On GTK4, gtk_window_set_child() (called below) automatically
+			 * replaces any existing content child, so manual removal is not needed.
+			 * Iterating via gtk_widget_get_first_child/gtk_widget_get_next_sibling
+			 * on a GtkWindow returns internal GTK4 implementation widgets
+			 * (e.g. GtkWindowHandle); unparenting those corrupts the window
+			 * structure and causes the splash screen to appear empty.
+			 */
 			long list = GTK3.gtk_container_get_children (shellHandle);
 			long listIterator = list;
 			while (listIterator != 0) {
