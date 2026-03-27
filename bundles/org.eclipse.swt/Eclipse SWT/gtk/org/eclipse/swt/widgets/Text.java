@@ -237,6 +237,7 @@ void createHandle (int index) {
 			} else {
 				bufferHandle = GTK4.gtk_text_get_buffer(textHandle);
 			}
+			GTK4.gtk_editable_set_width_chars(handle, 1);
 		} else {
 			GTK3.gtk_widget_set_has_window(fixedHandle, true);
 			GTK3.gtk_container_add(fixedHandle, handle);
@@ -633,15 +634,16 @@ Point computeSizeInPixels (int wHint, int hHint, boolean changed) {
 	if (hHint != SWT.DEFAULT && hHint < 0) hHint = 0;
 	int[] w = new int[1], h = new int[1];
 	if ((style & SWT.SINGLE) != 0) {
-		long layout;
 		if (GTK.GTK4) {
-			long context = GTK.gtk_widget_get_pango_context(handle);
-			layout = OS.pango_layout_new(context);
+			long text = GTK.gtk_editable_get_text(handle);
+			long layout = GTK.gtk_widget_create_pango_layout(handle, text);
+			OS.pango_layout_get_pixel_size(layout, w, h);
+			OS.g_object_unref(layout);
 		} else {
 			GTK.gtk_widget_realize(handle);
-			layout = GTK3.gtk_entry_get_layout(handle);
+			long layout = GTK3.gtk_entry_get_layout(handle);
+			OS.pango_layout_get_pixel_size(layout, w, h);
 		}
-		OS.pango_layout_get_pixel_size(layout, w, h);
 	} else {
 		byte [] start =  new byte [ITER_SIZEOF], end  =  new byte [ITER_SIZEOF];
 		GTK.gtk_text_buffer_get_bounds (bufferHandle, start, end);
