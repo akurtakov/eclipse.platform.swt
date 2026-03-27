@@ -643,7 +643,18 @@ void bringToTop (boolean force) {
 		}
 	} else {
 		if (GTK.GTK4) {
-			GTK4.gdk_toplevel_focus (gdkResource, display.lastUserEventTime);
+			/*
+			 * Use gtk_window_present() when force=true (e.g. called from open()) to
+			 * raise the window above other windows like the splash screen, matching the
+			 * GTK3 behavior where gdk_window_focus() causes the WM to raise+focus.
+			 * gdk_toplevel_focus() only requests focus without raising, so dialogs
+			 * can get stuck behind SWT.ON_TOP shells (e.g. splash screens) on GTK4.
+			 */
+			if (force) {
+				GTK4.gtk_window_present(shellHandle);
+			} else {
+				GTK4.gdk_toplevel_focus (gdkResource, display.lastUserEventTime);
+			}
 		} else {
 			GDK.gdk_window_focus (gdkResource, display.lastUserEventTime);
 		}
