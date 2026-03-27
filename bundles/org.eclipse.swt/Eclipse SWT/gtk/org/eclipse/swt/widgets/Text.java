@@ -706,6 +706,25 @@ Rectangle computeTrimInPixels (int x, int y, int width, int height) {
 			trim.width += icon_area.width;
 			GTK.gtk_entry_get_icon_area(handle, GTK.GTK_ENTRY_ICON_SECONDARY, icon_area);
 			trim.width += icon_area.width;
+		} else {
+			/*
+			 * GTK4 GtkSearchEntry always shows search and clear icons. Unlike GTK3,
+			 * gtk_entry_get_icon_area() is unavailable. Measure the icon overhead by
+			 * comparing the search entry's natural width to the inner GtkText widget's
+			 * natural width, then subtract the chrome (padding + border) already added
+			 * to the trim above to avoid double-counting.
+			 */
+			int[] natSearch = new int[1];
+			GTK4.gtk_widget_measure(handle, GTK.GTK_ORIENTATION_HORIZONTAL, -1, null, natSearch, null, null);
+			int[] natText = new int[1];
+			GTK4.gtk_widget_measure(textHandle, GTK.GTK_ORIENTATION_HORIZONTAL, -1, null, natText, null, null);
+			GtkBorder cssPadding = new GtkBorder();
+			gtk_style_context_get_padding(context, state_flag, cssPadding);
+			GtkBorder cssBorder = new GtkBorder();
+			gtk_style_context_get_border(context, state_flag, cssBorder);
+			int iconTotal = Math.max(0, natSearch[0] - natText[0] - cssPadding.left - cssPadding.right - cssBorder.left - cssBorder.right);
+			trim.x -= iconTotal / 2;
+			trim.width += iconTotal;
 		}
 	} else {
 		int borderWidth = gtk_container_get_border_width_or_margin (handle);
