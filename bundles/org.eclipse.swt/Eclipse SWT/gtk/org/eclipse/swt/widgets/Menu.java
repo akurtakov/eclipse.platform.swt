@@ -854,6 +854,7 @@ private void connectDropDownMenuSignals() {
 		if (menuItem.menu != null && menuItem.menu.popoverHandle == 0) {
 			long popover = findGtkPopoverMenuChild(barItem);
 			if (popover != 0) {
+				OS.g_object_ref(popover);
 				menuItem.menu.popoverHandle = popover;
 				display.addWidget(popover, menuItem.menu);
 				OS.g_signal_connect_closure_by_id(popover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
@@ -908,6 +909,7 @@ private void connectCascadeSubMenuSignals(Menu menu, long parentPopoverHandle) {
 			if (item.menu.popoverHandle != 0) continue;
 			long nestedPopover = findNestedPopoverForModel(parentPopoverHandle, item.menu.modelHandle);
 			if (nestedPopover != 0) {
+				OS.g_object_ref(nestedPopover);
 				item.menu.popoverHandle = nestedPopover;
 				display.addWidget(nestedPopover, item.menu);
 				OS.g_signal_connect_closure_by_id(nestedPopover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
@@ -1192,6 +1194,7 @@ void deregister() {
 	super.deregister();
 	if (GTK.GTK4 && (style & SWT.DROP_DOWN) != 0 && popoverHandle != 0) {
 		display.removeWidget(popoverHandle);
+		OS.g_object_unref(popoverHandle);
 		popoverHandle = 0;
 	}
 }
