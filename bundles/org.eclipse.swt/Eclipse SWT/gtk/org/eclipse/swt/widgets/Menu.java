@@ -824,13 +824,22 @@ public boolean getVisible () {
 
 @Override
 long gtk_map (long widget) {
-	if (GTK.GTK4 && (style & SWT.BAR) != 0) {
-		/*
-		 * The GtkPopoverMenuBar has been mapped, which means its internal
-		 * GtkPopoverMenuBarItem children now exist. Find the GtkPopoverMenu child for each,
-		 * and connect SHOW/HIDE signals so that SWT MenuListeners on DROP_DOWN are notified.
-		 */
-		connectDropDownMenuSignals();
+	if (GTK.GTK4) {
+		if ((style & SWT.BAR) != 0) {
+			/*
+			 * The GtkPopoverMenuBar has been mapped, which means its internal
+			 * GtkPopoverMenuBarItem children now exist. Find the GtkPopoverMenu child for each,
+			 * and connect SHOW/HIDE signals so that SWT MenuListeners on DROP_DOWN are notified.
+			 */
+			connectDropDownMenuSignals();
+		} else if ((style & SWT.POP_UP) != 0) {
+			/*
+			 * The POP_UP GtkPopoverMenu has been mapped. Its handle IS the GtkPopoverMenu,
+			 * and nested GtkPopoverMenu children for any CASCADE submenus already exist in
+			 * its widget tree. Connect SHOW/HIDE signals for those nested submenus now.
+			 */
+			connectCascadeSubMenuSignals(this, handle);
+		}
 	}
 	return super.gtk_map(widget);
 }
@@ -845,14 +854,97 @@ private void connectDropDownMenuSignals() {
 		if (menuItem.menu != null && menuItem.menu.popoverHandle == 0) {
 			long popover = findGtkPopoverMenuChild(barItem);
 			if (popover != 0) {
+				OS.g_object_ref(popover);
 				menuItem.menu.popoverHandle = popover;
 				display.addWidget(popover, menuItem.menu);
 				OS.g_signal_connect_closure_by_id(popover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
 				OS.g_signal_connect_closure_by_id(popover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+				/*
+				 * Also connect SHOW/HIDE signals for nested CASCADE submenus within
+				 * this DROP_DOWN menu. In GTK4 NESTED mode, each CASCADE item's submenu
+				 * is represented by a GtkPopoverMenu child within the parent popover's
+				 * widget tree. These need signal connections so that SWT.Show/SWT.Hide
+				 * events fire correctly (e.g. for lazy menu population).
+				 */
+				connectCascadeSubMenuSignals(menuItem.menu);
 			}
 		}
 		barItem = GTK4.gtk_widget_get_next_sibling(barItem);
 	}
+}
+
+/**
+ * Connects SHOW/HIDE signals for nested CASCADE submenu popovers within the
+ * given menu's popover widget tree. In GTK4 NESTED mode, each CASCADE item's
+ * submenu appears as a GtkPopoverMenu child of the parent's GtkModelButton.
+ * This method finds those widgets and registers them so that SWT.Show and
+ * SWT.Hide events are fired for submenu MenuListeners. Works for both
+ * DROP_DOWN menus (where {@code popoverHandle} is already set) and POP_UP
+ * menus (which delegate to the two-argument overload with {@code handle}).
+ *
+ * @param menu the menu whose CASCADE submenus need signal connections
+ */
+private void connectCascadeSubMenuSignals(Menu menu) {
+	connectCascadeSubMenuSignals(menu, menu.popoverHandle);
+}
+
+/**
+ * Core implementation of {@link #connectCascadeSubMenuSignals(Menu)} that
+ * accepts an explicit parent GtkPopoverMenu handle. Used when the parent
+ * popover is known but not stored in {@code menu.popoverHandle} (e.g. for
+ * POP_UP menus where {@code handle} IS the GtkPopoverMenu).
+ *
+ * @param menu               the menu whose CASCADE submenus need signal connections
+ * @param parentPopoverHandle the GtkPopoverMenu widget pointer to search within
+ */
+private void connectCascadeSubMenuSignals(Menu menu, long parentPopoverHandle) {
+	if (menu == null || parentPopoverHandle == 0 || menu.items == null) return;
+	for (MenuItem item : menu.items) {
+		if ((item.style & SWT.CASCADE) != 0 && item.menu != null) {
+			/*
+			 * item.menu is the CASCADE submenu (always SWT.DROP_DOWN style).
+			 * Its popoverHandle is 0 until we find and register its GtkPopoverMenu.
+			 * Skip if already connected (popoverHandle != 0).
+			 */
+			if (item.menu.popoverHandle != 0) continue;
+			long nestedPopover = findNestedPopoverForModel(parentPopoverHandle, item.menu.modelHandle);
+			if (nestedPopover != 0) {
+				OS.g_object_ref(nestedPopover);
+				item.menu.popoverHandle = nestedPopover;
+				display.addWidget(nestedPopover, item.menu);
+				OS.g_signal_connect_closure_by_id(nestedPopover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
+				OS.g_signal_connect_closure_by_id(nestedPopover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+				// Recurse to handle further nested CASCADE submenus
+				connectCascadeSubMenuSignals(item.menu);
+			}
+		}
+	}
+}
+
+/**
+ * Recursively searches the widget subtree rooted at {@code parentWidget} for
+ * a GtkPopoverMenu whose GMenuModel matches {@code targetModel}. Used to locate
+ * the nested GtkPopoverMenu that GTK4 creates internally for a CASCADE submenu.
+ *
+ * @param parentWidget the root widget to search from
+ * @param targetModel  the GMenuModel pointer (SWT submenu's modelHandle) to match
+ * @return the matching GtkPopoverMenu handle, or 0 if not found
+ */
+private long findNestedPopoverForModel(long parentWidget, long targetModel) {
+	if (parentWidget == 0 || targetModel == 0) return 0;
+	long child = GTK4.gtk_widget_get_first_child(parentWidget);
+	while (child != 0) {
+		if (GTK4.GTK_IS_POPOVER_MENU(child)) {
+			long model = GTK4.gtk_popover_menu_get_menu_model(child);
+			if (model == targetModel) {
+				return child;
+			}
+		}
+		long found = findNestedPopoverForModel(child, targetModel);
+		if (found != 0) return found;
+		child = GTK4.gtk_widget_get_next_sibling(child);
+	}
+	return 0;
 }
 
 private long findGtkPopoverMenuChild(long barItem) {
@@ -955,12 +1047,12 @@ void hookEvents() {
 		if ((style & SWT.DROP_DOWN) == 0) {
 			OS.g_signal_connect_closure_by_id(handle, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
 			OS.g_signal_connect_closure_by_id(handle, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
-			if ((style & SWT.BAR) != 0) {
+			if ((style & (SWT.BAR | SWT.POP_UP)) != 0) {
 				/*
-				 * Connect MAP signal on the GtkPopoverMenuBar so that once it is
-				 * realized and its internal GtkPopoverMenuBarItem children exist,
-				 * we can find the GtkPopoverMenu for each DROP_DOWN submenu and
-				 * route SHOW/HIDE signals back to the SWT DROP_DOWN Menu.
+				 * Connect MAP signal on the GtkPopoverMenuBar (BAR) or GtkPopoverMenu (POP_UP)
+				 * so that once it is realized and its internal widget children exist, we can
+				 * find the GtkPopoverMenu for each DROP_DOWN/CASCADE submenu and route SHOW/HIDE
+				 * signals back to the corresponding SWT Menu.
 				 */
 				OS.g_signal_connect_closure_by_id(handle, display.signalIds[MAP], 0, display.getClosure(MAP), false);
 			}
@@ -1102,6 +1194,7 @@ void deregister() {
 	super.deregister();
 	if (GTK.GTK4 && (style & SWT.DROP_DOWN) != 0 && popoverHandle != 0) {
 		display.removeWidget(popoverHandle);
+		OS.g_object_unref(popoverHandle);
 		popoverHandle = 0;
 	}
 }
