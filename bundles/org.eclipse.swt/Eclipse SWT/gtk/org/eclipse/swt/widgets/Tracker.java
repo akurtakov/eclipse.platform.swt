@@ -344,7 +344,7 @@ void drawRectangles (Rectangle [] rects) {
 	if (gdkResource == 0) return;
 
 	if (overlay == 0) return;
-	GTK3.gtk_widget_shape_combine_region (overlay, 0);
+	if (!GTK.GTK4) GTK3.gtk_widget_shape_combine_region (overlay, 0);
 
 	// Bug 498217.
 	// As of Gtk 3.9.1, Commit a60ccd3672467efb454b121993febc36f33cbc79, off-screen GDK windows are not processed.
@@ -410,12 +410,10 @@ void drawRectangles (Rectangle [] rects) {
 		setTrackerBackground(false);
 	}
 
-	GTK3.gtk_widget_shape_combine_region (overlay, region);
+	if (!GTK.GTK4) GTK3.gtk_widget_shape_combine_region (overlay, region);
 	Cairo.cairo_region_destroy (region);
 	if (GTK.GTK4) {
-		long overlaySurface = GTK4.gtk_native_get_surface(GTK4.gtk_widget_get_native (overlay));
-		GDK.gdk_surface_hide (overlaySurface);
-		/* TODO: GTK does not provide a gdk_surface_show, probably will require use of the present api */
+		GTK.gtk_widget_queue_draw (overlay);
 	} else {
 		long overlayWindow = GTK3.gtk_widget_get_window (overlay);
 		GDK.gdk_window_hide (overlayWindow);
@@ -462,7 +460,10 @@ public boolean getStippled () {
 
 boolean grab () {
 	long cursor = this.cursor != null ? this.cursor.handle : 0;
-	int result = gdk_pointer_grab (GTK.GTK4 ? surface : window, GDK.GDK_OWNERSHIP_NONE, false,
+	long gdkResource = GTK.GTK4
+			? GTK4.gtk_native_get_surface(GTK4.gtk_widget_get_native(overlay))
+			: window;
+	int result = gdk_pointer_grab (gdkResource, GDK.GDK_OWNERSHIP_NONE, false,
 			GDK.GDK_POINTER_MOTION_MASK | GDK.GDK_BUTTON_RELEASE_MASK, 0, cursor, GDK.GDK_CURRENT_TIME);
 	return result == GDK.GDK_GRAB_SUCCESS;
 }
@@ -821,12 +822,10 @@ public boolean open () {
 	this.oldX = oldX [0];
 	this.oldY = oldY [0];
 
-	grabbed = grab ();
-	lastCursor = this.cursor != null ? this.cursor.handle : 0;
-
 	cachedCombinedDisplayResolution = Display.getDefault().getBounds(); // In case resolution was changed during run time.
 	if (GTK.GTK4) {
 		overlay = GTK4.gtk_window_new();
+		GTK.gtk_window_set_decorated(overlay, false);
 	} else {
 		overlay = GTK3.gtk_window_new (GTK.GTK_WINDOW_POPUP);
 		GTK3.gtk_window_set_skip_taskbar_hint (overlay, true);
@@ -847,6 +846,9 @@ public boolean open () {
 		GTK3.gtk_window_resize (overlay, bounds.width, bounds.height);
 	}
 	gtk_widget_show (overlay);
+	/* In GTK4 the grab must happen after the overlay surface is shown. */
+	grabbed = grab ();
+	lastCursor = this.cursor != null ? this.cursor.handle : 0;
 
 	/* Tracker behaves like a Dialog with its own OS event loop. */
 	Display display = this.display;
@@ -889,6 +891,16 @@ private void setTrackerBackground(boolean opaque) {
 	} else if (opaque == cachedBackgroundIsOpaque.booleanValue()) {
 		return;
 	}
+	if (GTK.GTK4) {
+		/*
+		 * gtk_widget_shape_combine_region() was removed in GTK4; visual tracker
+		 * drawing is not yet implemented for GTK4. Keep the overlay transparent so
+		 * it does not block the screen while still capturing pointer events.
+		 * TODO: implement GTK4 tracker drawing using snapshot/custom rendering.
+		 */
+		GTK.gtk_widget_set_opacity (overlay, 0.0);
+		return;
+	}
 	String css;
 	if (opaque) {
 		GTK.gtk_widget_set_opacity (overlay, 1.0);
@@ -907,23 +919,11 @@ private void setTrackerBackground(boolean opaque) {
 		GTK.gtk_style_context_add_provider (context, provider, GTK.GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 		OS.g_object_unref (provider);
 	}
-	if (GTK.GTK4) {
-		GTK4.gtk_css_provider_load_from_data (provider, Converter.wcsToMbcs (css, true), -1);
-	} else {
-		GTK3.gtk_css_provider_load_from_data (provider, Converter.wcsToMbcs (css, true), -1, null);
-	}
+	GTK3.gtk_css_provider_load_from_data (provider, Converter.wcsToMbcs (css, true), -1, null);
 
 	long region = Cairo.cairo_region_create ();
-
-	if (GTK.GTK4) {
-		//TODO: GTK4
-		//GDK.gdk_surface_set_opaque_region(context, region);
-		//GDK.gdk_surface_set_input_region(context, region);
-	} else {
-		GTK3.gtk_widget_shape_combine_region (overlay, region);
-		GTK3.gtk_widget_input_shape_combine_region (overlay, region);
-	}
-
+	GTK3.gtk_widget_shape_combine_region (overlay, region);
+	GTK3.gtk_widget_input_shape_combine_region (overlay, region);
 	Cairo.cairo_region_destroy (region);
 }
 
@@ -1183,7 +1183,13 @@ public void setStippled (boolean stippled) {
 }
 
 void ungrab () {
-	if (grabbed) gdk_pointer_ungrab (window, GDK.GDK_CURRENT_TIME);
+	if (grabbed) {
+		if (GTK.GTK4) {
+			gdk_pointer_ungrab(GTK4.gtk_native_get_surface(GTK4.gtk_widget_get_native(overlay)), GDK.GDK_CURRENT_TIME);
+		} else {
+			gdk_pointer_ungrab (window, GDK.GDK_CURRENT_TIME);
+		}
+	}
 }
 
 void update () {
