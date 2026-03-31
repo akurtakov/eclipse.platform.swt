@@ -446,6 +446,42 @@ public class GTK4 {
 	 */
 	public static final native void gtk_scrolled_window_set_child(long scrolled_window, long child);
 
+	/* GtkOverlay */
+	/** @method flags=dynamic */
+	public static final native long gtk_overlay_new();
+	/**
+	 * @method flags=dynamic
+	 * @param overlay cast=(GtkOverlay *)
+	 * @param child cast=(GtkWidget *)
+	 */
+	public static final native void gtk_overlay_set_child(long overlay, long child);
+	/**
+	 * @method flags=dynamic
+	 * @param overlay cast=(GtkOverlay *)
+	 * @param widget cast=(GtkWidget *)
+	 */
+	public static final native void gtk_overlay_add_overlay(long overlay, long widget);
+
+	/* GtkDrawingArea */
+	/** @method flags=dynamic */
+	public static final native long gtk_drawing_area_new();
+	/**
+	 * @method flags=dynamic
+	 * @param self cast=(GtkDrawingArea *)
+	 * @param draw_func cast=(GtkDrawingAreaDrawFunc)
+	 * @param user_data cast=(gpointer)
+	 * @param destroy cast=(GDestroyNotify)
+	 */
+	public static final native void gtk_drawing_area_set_draw_func(long self, long draw_func, long user_data, long destroy);
+
+	/* GtkWidget */
+	/**
+	 * @method flags=dynamic
+	 * @param widget cast=(GtkWidget *)
+	 * @param can_target cast=(gboolean)
+	 */
+	public static final native void gtk_widget_set_can_target(long widget, boolean can_target);
+
 	/* GtkWindow */
 	public static final native long gtk_window_new();
 	/** @param window cast=(GtkWindow *) */

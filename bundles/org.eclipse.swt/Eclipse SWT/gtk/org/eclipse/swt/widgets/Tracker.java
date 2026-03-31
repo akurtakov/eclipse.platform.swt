@@ -58,6 +58,13 @@ public class Tracker extends Widget {
 	int oldX, oldY;
 	long provider;
 
+	// GTK4: GtkDrawingArea used as overlay child for drawing tracker rectangles
+	long drawingArea;
+	Callback trackerDrawCallback;
+	// GTK4: pre-allocated coordinate buffers for trackerDraw() to avoid per-draw allocation
+	final double[] trackerDrawDestX = new double[1];
+	final double[] trackerDrawDestY = new double[1];
+
 	// Re-use/cache some items for performance reasons as draw-events must be efficient to prevent jitter.
 	Rectangle cachedCombinedDisplayResolution = Display.getDefault().getBounds(); // Cached for performance reasons.
 	Rectangle cachedUnion = new Rectangle(0, 0, 0, 0);
@@ -413,7 +420,9 @@ void drawRectangles (Rectangle [] rects) {
 	if (!GTK.GTK4) GTK3.gtk_widget_shape_combine_region (overlay, region);
 	Cairo.cairo_region_destroy (region);
 	if (GTK.GTK4) {
-		GTK.gtk_widget_queue_draw (overlay);
+		/* Redraw the GtkDrawingArea overlay (if using GtkOverlay) or the window. */
+		long drawTarget = (drawingArea != 0) ? drawingArea : overlay;
+		GTK.gtk_widget_queue_draw (drawTarget);
 	} else {
 		long overlayWindow = GTK3.gtk_widget_get_window (overlay);
 		GDK.gdk_window_hide (overlayWindow);
@@ -778,7 +787,7 @@ public boolean open () {
 			window = gtk_widget_get_window (parent.paintHandle());
 		}
 	}
-	if (GTK.GTK4 ? surface == 0 : window == 0) return false;
+	if (GTK.GTK4 ? (parent != null && surface == 0) : window == 0) return false;
 	cancelled = false;
 	tracking = true;
 	int [] oldX = new int [1], oldY = new int [1], state = new int [1];
@@ -823,30 +832,57 @@ public boolean open () {
 	this.oldY = oldY [0];
 
 	cachedCombinedDisplayResolution = Display.getDefault().getBounds(); // In case resolution was changed during run time.
-	if (GTK.GTK4) {
+	if (GTK.GTK4 && parent != null) {
+		/*
+		 * GTK4 with a parent: use GtkOverlay inside the parent shell for drawing
+		 * tracker rectangles. Insert a GtkOverlay between the shell window and its
+		 * vboxHandle child, then add a GtkDrawingArea as the visible overlay layer.
+		 */
+		Shell shell = parent.getShell();
+		long shellWindowHandle = shell.shellHandle;
+		long vboxToWrap = shell.vboxHandle;
+		overlay = GTK4.gtk_overlay_new();
+		/* Reparent vboxHandle under the new GtkOverlay. */
+		OS.g_object_ref(vboxToWrap);
+		GTK.gtk_widget_unparent(vboxToWrap);
+		GTK4.gtk_overlay_set_child(overlay, vboxToWrap);
+		OS.g_object_unref(vboxToWrap);
+		GTK4.gtk_window_set_child(shellWindowHandle, overlay);
+		/* Create a transparent GtkDrawingArea as the visual tracker overlay. */
+		drawingArea = GTK4.gtk_drawing_area_new();
+		GTK.gtk_widget_set_hexpand(drawingArea, true);
+		GTK.gtk_widget_set_vexpand(drawingArea, true);
+		GTK4.gtk_widget_set_can_target(drawingArea, false);
+		GTK4.gtk_overlay_add_overlay(overlay, drawingArea);
+		trackerDrawCallback = new Callback(this, "trackerDraw", 5); //$NON-NLS-1$
+		GTK4.gtk_drawing_area_set_draw_func(drawingArea, trackerDrawCallback.getAddress(), 0, 0);
+		gtk_widget_show(overlay);
+		gtk_widget_show(drawingArea);
+	} else if (GTK.GTK4) {
+		/* GTK4 without a parent: use a full-screen undecorated top-level window. */
 		overlay = GTK4.gtk_window_new();
 		GTK.gtk_window_set_decorated(overlay, false);
+		GTK.gtk_window_set_title(overlay, new byte[1]);
+		GTK.gtk_widget_realize(overlay);
+		setTrackerBackground(true);
+		Rectangle bounds = display.getBoundsInPixels();
+		GTK.gtk_window_set_default_size(overlay, bounds.width, bounds.height);
+		gtk_widget_show(overlay);
 	} else {
 		overlay = GTK3.gtk_window_new (GTK.GTK_WINDOW_POPUP);
 		GTK3.gtk_window_set_skip_taskbar_hint (overlay, true);
-	}
-	GTK.gtk_window_set_title (overlay, new byte [1]);
-	if (parent != null) GTK.gtk_window_set_transient_for(overlay, parent.topHandle());
-	GTK.gtk_widget_realize (overlay);
-	if (!GTK.GTK4) {
+		GTK.gtk_window_set_title (overlay, new byte [1]);
+		if (parent != null) GTK.gtk_window_set_transient_for(overlay, parent.topHandle());
+		GTK.gtk_widget_realize (overlay);
 		long overlayWindow = GTK3.gtk_widget_get_window (overlay);
 		GDK.gdk_window_set_override_redirect (overlayWindow, true);
-	}
-	setTrackerBackground(true);
-	Rectangle bounds = display.getBoundsInPixels();
-	if (GTK.GTK4) {
-		GTK.gtk_window_set_default_size (overlay, bounds.width, bounds.height);
-	} else {
+		setTrackerBackground(true);
+		Rectangle bounds = display.getBoundsInPixels();
 		GTK3.gtk_window_move (overlay, bounds.x, bounds.y);
 		GTK3.gtk_window_resize (overlay, bounds.width, bounds.height);
+		gtk_widget_show (overlay);
 	}
-	gtk_widget_show (overlay);
-	/* In GTK4 the grab must happen after the overlay surface is shown. */
+	/* In GTK4 the grab must happen after the overlay surface is mapped. */
 	grabbed = grab ();
 	lastCursor = this.cursor != null ? this.cursor.handle : 0;
 
@@ -873,12 +909,31 @@ public boolean open () {
 	}
 	ungrab ();
 	if (overlay != 0) {
-		if (GTK.GTK4) {
+		if (GTK.GTK4 && parent != null) {
+			/*
+			 * Restore the shell's original widget structure by moving vboxHandle
+			 * back under shellHandle and discarding the GtkOverlay (+ drawingArea).
+			 */
+			Shell shell = parent.isDisposed() ? null : parent.getShell();
+			if (shell != null && !shell.isDisposed()) {
+				long vboxRestored = shell.vboxHandle;
+				OS.g_object_ref(vboxRestored);
+				GTK.gtk_widget_unparent(vboxRestored);
+				GTK4.gtk_window_set_child(shell.shellHandle, vboxRestored);
+				OS.g_object_unref(vboxRestored);
+			}
+			/* GtkOverlay (and its drawingArea child) are now unreferenced by the shell. */
+		} else if (GTK.GTK4) {
 			GTK4.gtk_window_destroy (overlay);
 		} else {
 			GTK3.gtk_widget_destroy (overlay);
 		}
 		overlay = 0;
+		drawingArea = 0;
+	}
+	if (trackerDrawCallback != null) {
+		trackerDrawCallback.dispose();
+		trackerDrawCallback = null;
 	}
 	window = 0;
 	surface = 0;
@@ -893,10 +948,10 @@ private void setTrackerBackground(boolean opaque) {
 	}
 	if (GTK.GTK4) {
 		/*
-		 * gtk_widget_shape_combine_region() was removed in GTK4; visual tracker
-		 * drawing is not yet implemented for GTK4. Keep the overlay transparent so
-		 * it does not block the screen while still capturing pointer events.
-		 * TODO: implement GTK4 tracker drawing using snapshot/custom rendering.
+		 * gtk_widget_shape_combine_region() was removed in GTK4. When a parent
+		 * is provided, drawing is done via a GtkDrawingArea overlay child (see
+		 * trackerDraw()). For the Tracker(Display) case (no parent), no visual
+		 * drawing is implemented yet; keep the overlay transparent.
 		 */
 		GTK.gtk_widget_set_opacity (overlay, 0.0);
 		return;
@@ -925,6 +980,40 @@ private void setTrackerBackground(boolean opaque) {
 	GTK3.gtk_widget_shape_combine_region (overlay, region);
 	GTK3.gtk_widget_input_shape_combine_region (overlay, region);
 	Cairo.cairo_region_destroy (region);
+}
+
+/**
+ * GTK4: draw callback for the GtkDrawingArea overlay child.
+ * Called by GTK to draw the tracker rectangle outlines onto the overlay.
+ * The background is cleared to fully transparent so only the outlines are visible.
+ *
+ * @param drawingAreaWidget the GtkDrawingArea handle
+ * @param cr                the cairo_t context to draw into
+ * @param width             the width of the drawing area
+ * @param height            the height of the drawing area
+ * @param userData          unused
+ * @return always 0
+ */
+long trackerDraw(long drawingAreaWidget, long cr, int width, int height, long userData) {
+	/* Clear to fully transparent so the application content shows through. */
+	Cairo.cairo_save(cr);
+	Cairo.cairo_set_operator(cr, Cairo.CAIRO_OPERATOR_SOURCE);
+	Cairo.cairo_set_source_rgba(cr, 0, 0, 0, 0);
+	Cairo.cairo_paint(cr);
+	Cairo.cairo_restore(cr);
+	/* Draw each tracker rectangle as a 1-pixel black outline. */
+	Rectangle[] rects = this.rectangles;
+	if (rects == null || parent == null) return 0;
+	Cairo.cairo_set_source_rgb(cr, 0, 0, 0);
+	Cairo.cairo_set_line_width(cr, 1.0);
+	for (Rectangle r : rects) {
+		if (!GTK4.gtk_widget_translate_coordinates(
+				parent.handle, drawingAreaWidget, r.x, r.y, trackerDrawDestX, trackerDrawDestY)) continue;
+		Cairo.cairo_new_path(cr);
+		Cairo.cairo_rectangle(cr, trackerDrawDestX[0] + 0.5, trackerDrawDestY[0] + 0.5, r.width, r.height);
+		Cairo.cairo_stroke(cr);
+	}
+	return 0;
 }
 
 boolean processEvent (long eventPtr) {
