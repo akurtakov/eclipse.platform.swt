@@ -771,9 +771,13 @@ public boolean open () {
 	checkWidget();
 	if (!GTK.GTK4) window = GDK.gdk_get_default_root_window();
 	if (parent != null) {
-		window = gtk_widget_get_window (parent.paintHandle());
+		if (GTK.GTK4) {
+			surface = gtk_widget_get_surface(parent.paintHandle());
+		} else {
+			window = gtk_widget_get_window (parent.paintHandle());
+		}
 	}
-	if (window == 0) return false;
+	if (GTK.GTK4 ? surface == 0 : window == 0) return false;
 	cancelled = false;
 	tracking = true;
 	int [] oldX = new int [1], oldY = new int [1], state = new int [1];
@@ -821,8 +825,12 @@ public boolean open () {
 	lastCursor = this.cursor != null ? this.cursor.handle : 0;
 
 	cachedCombinedDisplayResolution = Display.getDefault().getBounds(); // In case resolution was changed during run time.
-	overlay = GTK3.gtk_window_new (GTK.GTK_WINDOW_POPUP);
-	GTK3.gtk_window_set_skip_taskbar_hint (overlay, true);
+	if (GTK.GTK4) {
+		overlay = GTK4.gtk_window_new();
+	} else {
+		overlay = GTK3.gtk_window_new (GTK.GTK_WINDOW_POPUP);
+		GTK3.gtk_window_set_skip_taskbar_hint (overlay, true);
+	}
 	GTK.gtk_window_set_title (overlay, new byte [1]);
 	if (parent != null) GTK.gtk_window_set_transient_for(overlay, parent.topHandle());
 	GTK.gtk_widget_realize (overlay);
@@ -832,8 +840,12 @@ public boolean open () {
 	}
 	setTrackerBackground(true);
 	Rectangle bounds = display.getBoundsInPixels();
-	GTK3.gtk_window_move (overlay, bounds.x, bounds.y);
-	GTK3.gtk_window_resize (overlay, bounds.width, bounds.height);
+	if (GTK.GTK4) {
+		GTK.gtk_window_set_default_size (overlay, bounds.width, bounds.height);
+	} else {
+		GTK3.gtk_window_move (overlay, bounds.x, bounds.y);
+		GTK3.gtk_window_resize (overlay, bounds.width, bounds.height);
+	}
 	gtk_widget_show (overlay);
 
 	/* Tracker behaves like a Dialog with its own OS event loop. */
@@ -859,10 +871,15 @@ public boolean open () {
 	}
 	ungrab ();
 	if (overlay != 0) {
-		GTK3.gtk_widget_destroy (overlay);
+		if (GTK.GTK4) {
+			GTK4.gtk_window_destroy (overlay);
+		} else {
+			GTK3.gtk_widget_destroy (overlay);
+		}
 		overlay = 0;
 	}
 	window = 0;
+	surface = 0;
 	return !cancelled;
 }
 
