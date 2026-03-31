@@ -287,24 +287,23 @@ long eventSurface () {
 }
 
 /**
- * GdkEventType constants different on GTK4 and GTK3.
- * This checks for GTK versions and return the correct constants defined in GDK.java
- * @return constant defined
+ * GTK4 renumbered the GdkEventType enum. This method maps GTK4 event type
+ * values to the corresponding GTK3 constants used throughout the SWT code.
+ * GTK4 also removed several event types (GDK_EXPOSE, GDK_CONFIGURE, GDK_MAP,
+ * GDK_UNMAP) which are handled via signals/callbacks instead.
+ * @return the GTK3-compatible event type constant
  */
 static int fixGdkEventTypeValues(int eventType) {
 	if (GTK.GTK4) {
 		switch (eventType) {
-			case GDK.GDK4_EXPOSE: return GDK.GDK_EXPOSE;
 			case GDK.GDK4_MOTION_NOTIFY: return GDK.GDK_MOTION_NOTIFY;
 			case GDK.GDK4_BUTTON_PRESS: return GDK.GDK_BUTTON_PRESS;
 			case GDK.GDK4_BUTTON_RELEASE: return GDK.GDK_BUTTON_RELEASE;
 			case GDK.GDK4_KEY_PRESS: return GDK.GDK_KEY_PRESS;
+			case GDK.GDK4_KEY_RELEASE: return GDK.GDK_KEY_RELEASE;
 			case GDK.GDK4_ENTER_NOTIFY: return GDK.GDK_ENTER_NOTIFY;
 			case GDK.GDK4_LEAVE_NOTIFY: return GDK.GDK_LEAVE_NOTIFY;
 			case GDK.GDK4_FOCUS_CHANGE: return GDK.GDK_FOCUS_CHANGE;
-			case GDK.GDK4_CONFIGURE: return GDK.GDK_CONFIGURE;
-			case GDK.GDK4_MAP: return GDK.GDK_MAP;
-			case GDK.GDK4_UNMAP: return GDK.GDK_UNMAP;
 		}
 	}
 	return eventType;

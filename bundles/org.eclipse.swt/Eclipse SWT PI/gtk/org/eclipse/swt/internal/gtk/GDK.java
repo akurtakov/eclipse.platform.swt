@@ -222,19 +222,19 @@ public class GDK extends OS {
 	public static final int GDK_WINDOW_TYPE_HINT_UTILITY = 5;
 	public static final int GDK_WINDOW_TYPE_HINT_TOOLTIP = 10;
 
-	/** GdkEventType constants are different on GTK4 */
-	public static final int GDK4_EXPOSE = 3;
-	public static final int GDK4_MOTION_NOTIFY = 4;
-	public static final int GDK4_BUTTON_PRESS = 5;
-	public static final int GDK4_BUTTON_RELEASE = 6;
-	public static final int GDK4_KEY_PRESS = 7;
-	public static final int GDK4_KEY_RELEASE = 8;
-	public static final int GDK4_ENTER_NOTIFY = 9;
-	public static final int GDK4_LEAVE_NOTIFY = 10;
-	public static final int GDK4_FOCUS_CHANGE = 11;
-	public static final int GDK4_CONFIGURE = 12;
-	public static final int GDK4_MAP = 13;
-	public static final int GDK4_UNMAP = 14;
+	/**
+	 * GdkEventType constants. In GTK4 the enum was renumbered and several event
+	 * types that were present in GTK3 (GDK_EXPOSE, GDK_CONFIGURE, GDK_MAP,
+	 * GDK_UNMAP) no longer exist.
+	 */
+	public static final int GDK4_MOTION_NOTIFY = 1;
+	public static final int GDK4_BUTTON_PRESS = 2;
+	public static final int GDK4_BUTTON_RELEASE = 3;
+	public static final int GDK4_KEY_PRESS = 4;
+	public static final int GDK4_KEY_RELEASE = 5;
+	public static final int GDK4_ENTER_NOTIFY = 6;
+	public static final int GDK4_LEAVE_NOTIFY = 7;
+	public static final int GDK4_FOCUS_CHANGE = 8;
 
 	/** sizeof(TYPE) for 32/64 bit support */
 	public static final native int GdkKeymapKey_sizeof();
