@@ -14,16 +14,23 @@
 package org.eclipse.swt.snippets;
 
 /*
- * Shell example snippet: demonstrate that a dialog opened while a splash screen
- * (SWT.ON_TOP shell) is visible appears on top of the splash, not behind it.
+ * Shell example snippet: reproduce Eclipse "workspace chooser dialog rendered
+ * behind / partially blank while splash screen is visible" on GTK4.
  *
- * On GTK4 the part of the dialog that overlaps the splash screen was not rendered
- * (appeared blank) because Shell.bringToTop() used gdk_toplevel_focus() which only
- * requests focus without raising the window.  The fix is to call gtk_window_present()
- * instead when force=true (i.e. called from Shell.open()).
+ * Two distinct GTK4 issues are demonstrated:
  *
- * Expected behavior: after the splash appears, a "workspace chooser" dialog opens on
- * top of it (overlapping the splash).  The dialog must be fully visible and interactive.
+ * Issue 1 – Z-order: the dialog appears BEHIND the SWT.ON_TOP splash shell.
+ *   Fixed by calling gtk_window_present() (not gdk_toplevel_focus()) in
+ *   Shell.bringToTop() when force=true.
+ *
+ * Issue 2 – Content rendering: even after the dialog is on top, its interior
+ *   is partially blank.  The Combo widget shows only the first character, the
+ *   recent-workspaces Table is empty-looking, and buttons are clipped.  This
+ *   matches the screenshot reported against the GTK4 workspace-chooser.
+ *
+ * Expected behavior (after both fixes): the dialog opens fully on top of the
+ * splash, the Combo shows the full path, the Table lists recent workspaces,
+ * and the Launch / Cancel buttons are completely visible.
  *
  * For a list of all SWT example snippets see
  * https://www.eclipse.org/swt/snippets/
@@ -38,11 +45,9 @@ public class Snippet393 {
 public static void main(String[] args) {
 	final Display display = new Display();
 
-	/* --- Splash screen (SWT.ON_TOP mimics Eclipse's splash) --- */
+	/* --- Splash screen: SWT.ON_TOP shell that covers the screen center --- */
 	final Shell splash = new Shell(SWT.ON_TOP);
-	splash.setLayout(new FillLayout(SWT.VERTICAL));
 
-	// Paint the splash with a distinctive cyan background so it is easy to spot.
 	splash.addListener(SWT.Paint, e -> {
 		Rectangle r = splash.getClientArea();
 		e.gc.setBackground(display.getSystemColor(SWT.COLOR_CYAN));
@@ -52,78 +57,131 @@ public static void main(String[] args) {
 		e.gc.drawText("Splash Screen (SWT.ON_TOP)", 20, r.height / 2 - 10, true);
 	});
 
-	splash.setSize(500, 300);
+	final int splashW = 600, splashH = 400;
+	splash.setSize(splashW, splashH);
 	Rectangle displayRect = display.getBounds();
 	splash.setLocation(
-		(displayRect.width - 500) / 2,
-		(displayRect.height - 300) / 2);
+		(displayRect.width  - splashW) / 2,
+		(displayRect.height - splashH) / 2);
 	splash.open();
 
 	/*
-	 * Simulate the Eclipse startup sequence: while the splash is still showing,
-	 * open a "workspace chooser" dialog that overlaps the splash.
+	 * After a short delay (mimicking Eclipse startup), open the workspace-chooser
+	 * dialog.  It is intentionally sized and structured to match the real Eclipse
+	 * ChooseWorkspaceDialog so that both GTK4 rendering issues are observable:
 	 *
-	 * On GTK4 (before the fix) the area of the dialog covered by the splash was
-	 * not rendered – it appeared blank or showed through to the splash content.
+	 *   - The dialog uses setSize() (not pack()) just as the real dialog does.
+	 *   - A Combo is used for the workspace path (not a plain Text widget).
+	 *   - A Table lists recent workspaces below the combo row.
+	 *   - The dialog is centered over the splash so it overlaps it completely.
 	 */
 	display.timerExec(1500, () -> {
 		if (splash.isDisposed()) return;
 
 		Shell dialog = new Shell(display, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
-		dialog.setText("Select Workspace");
-		GridLayout layout = new GridLayout(2, false);
-		layout.marginWidth = 15;
-		layout.marginHeight = 15;
-		layout.verticalSpacing = 10;
-		dialog.setLayout(layout);
+		dialog.setText("Eclipse SDK Launcher");
 
-		Label infoLabel = new Label(dialog, SWT.WRAP);
-		infoLabel.setText(
-			"This dialog simulates the Eclipse workspace chooser.\n\n"
-			+ "It should be fully visible and interactive even though\n"
-			+ "it overlaps the cyan SWT.ON_TOP splash screen behind it.\n\n"
-			+ "On GTK4 (before the fix) the overlapping region appeared\n"
-			+ "blank / unrendered.");
-		GridData labelData = new GridData(SWT.FILL, SWT.TOP, true, false, 2, 1);
-		labelData.widthHint = 380;
-		infoLabel.setLayoutData(labelData);
+		GridLayout dialogLayout = new GridLayout();
+		dialogLayout.marginWidth  = 0;
+		dialogLayout.marginHeight = 0;
+		dialog.setLayout(dialogLayout);
 
-		Label pathLabel = new Label(dialog, SWT.NONE);
-		pathLabel.setText("Workspace:");
+		/* ---- header area ---- */
+		Composite header = new Composite(dialog, SWT.NONE);
+		header.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+		GridLayout headerLayout = new GridLayout();
+		headerLayout.marginWidth  = 12;
+		headerLayout.marginHeight = 8;
+		header.setLayout(headerLayout);
 
-		Text workspacePath = new Text(dialog, SWT.BORDER);
-		workspacePath.setText("/home/user/workspace");
-		workspacePath.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		Label title = new Label(header, SWT.NONE);
+		title.setText("Select a directory as workspace");
+		FontData[] fd = title.getFont().getFontData();
+		for (FontData f : fd) f.setStyle(SWT.BOLD);
+		Font boldFont = new Font(display, fd);
+		title.setFont(boldFont);
+		title.addListener(SWT.Dispose, e -> boldFont.dispose());
 
-		// Spacer
-		new Label(dialog, SWT.NONE);
+		Label desc = new Label(header, SWT.WRAP);
+		desc.setText(
+			"Eclipse SDK uses the workspace directory to store its preferences " +
+			"and development artifacts.");
+		GridData descData = new GridData(SWT.FILL, SWT.TOP, true, false);
+		descData.widthHint = 560;
+		desc.setLayoutData(descData);
 
-		Composite buttons = new Composite(dialog, SWT.NONE);
-		buttons.setLayout(new RowLayout(SWT.HORIZONTAL));
-		buttons.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false));
+		/* ---- workspace path row (Combo + Browse button) ---- */
+		Composite pathRow = new Composite(dialog, SWT.NONE);
+		pathRow.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+		GridLayout pathLayout = new GridLayout(2, false);
+		pathLayout.marginWidth  = 12;
+		pathLayout.marginHeight = 4;
+		pathRow.setLayout(pathLayout);
 
-		Button ok = new Button(buttons, SWT.PUSH);
-		ok.setText("Launch");
-		ok.addListener(SWT.Selection, e -> {
+		Combo workspaceCombo = new Combo(pathRow, SWT.DROP_DOWN | SWT.BORDER);
+		workspaceCombo.add("Eclipse SDK workspace");
+		workspaceCombo.add("/home/user/eclipse-workspace-2");
+		workspaceCombo.add("/home/user/eclipse-workspace-3");
+		workspaceCombo.select(0);
+		workspaceCombo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+
+		Button browse = new Button(pathRow, SWT.PUSH);
+		browse.setText("Browse...");
+
+		/* ---- recent workspaces group ---- */
+		Group recentGroup = new Group(dialog, SWT.NONE);
+		recentGroup.setText("Recent Workspaces");
+		recentGroup.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+		recentGroup.setLayout(new FillLayout());
+
+		Table recentTable = new Table(recentGroup, SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE);
+		recentTable.setHeaderVisible(false);
+		recentTable.setLinesVisible(false);
+		String[] recentPaths = {
+			"Eclipse SDK workspace",
+			"/home/user/eclipse-workspace-2",
+			"/home/user/eclipse-workspace-3",
+		};
+		for (String path : recentPaths) {
+			TableItem item = new TableItem(recentTable, SWT.NONE);
+			item.setText(path);
+		}
+
+		/* ---- button bar ---- */
+		Composite buttonBar = new Composite(dialog, SWT.NONE);
+		buttonBar.setLayoutData(new GridData(SWT.FILL, SWT.BOTTOM, true, false));
+		GridLayout buttonLayout = new GridLayout(3, false);
+		buttonLayout.marginWidth  = 12;
+		buttonLayout.marginHeight = 8;
+		buttonBar.setLayout(buttonLayout);
+
+		// fill spacer pushes buttons to the right
+		Label spacer = new Label(buttonBar, SWT.NONE);
+		spacer.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+
+		Button launch = new Button(buttonBar, SWT.PUSH);
+		launch.setText("Launch");
+		launch.addListener(SWT.Selection, e -> {
 			splash.close();
 			dialog.close();
 		});
-		dialog.setDefaultButton(ok);
+		dialog.setDefaultButton(launch);
 
-		Button cancel = new Button(buttons, SWT.PUSH);
+		Button cancel = new Button(buttonBar, SWT.PUSH);
 		cancel.setText("Cancel");
 		cancel.addListener(SWT.Selection, e -> {
 			splash.close();
 			dialog.close();
 		});
 
-		dialog.pack();
+		/* Use setSize (not pack) to match the real dialog and expose the bug */
+		dialog.setSize(700, 500);
 
-		// Position the dialog so it visibly overlaps the splash screen.
+		// Center over the splash screen so the overlap is maximal.
 		Rectangle splashRect = splash.getBounds();
 		Rectangle dialogRect = dialog.getBounds();
 		dialog.setLocation(
-			splashRect.x + (splashRect.width - dialogRect.width) / 2,
+			splashRect.x + (splashRect.width  - dialogRect.width)  / 2,
 			splashRect.y + (splashRect.height - dialogRect.height) / 2);
 
 		dialog.open();
