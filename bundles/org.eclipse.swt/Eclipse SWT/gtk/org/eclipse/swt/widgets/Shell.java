@@ -1880,10 +1880,10 @@ long gtk_size_allocate (long widget, long allocation) {
 	//	Bug 474235: on Wayland gtk_size_allocate() is called more frequently, causing an
 	//  infinitely recursive resize call. This causes non-resizable Shells/Dialogs to
 	//  crash. Fix: only call resizeBounds() on resizable Shells.
-	//  Exception: also call resizeBounds() for fullscreen shells so the content fills
-	//  the entire screen even when the shell was not created with SWT.RESIZE.
+	//  Exception: also call resizeBounds() for fullscreen/maximized shells so the
+	//  content fills the entire screen even when the shell was not created with SWT.RESIZE.
 	if ((!resized || oldWidth != width || oldHeight != height)
-			&& (!OS.isWayland() || (style & SWT.RESIZE) != 0 || fullScreen)) {
+			&& (!OS.isWayland() || (style & SWT.RESIZE) != 0 || fullScreen || maximized)) {
 		oldWidth = width;
 		oldHeight = height;
 		resizeBounds (width, height, true); //this is called to resize child widgets when the shell is resized.
@@ -2294,9 +2294,10 @@ void resizeBounds (int width, int height, boolean notify) {
 	int boxWidth = width - 2*border;
 	int boxHeight = height - 2*border;
 	if ((style & SWT.RESIZE) == 0) {
-		// In GTK4 fullscreen mode the shell fills the entire monitor. Don't pin the
-		// vboxHandle to a fixed size so that the content can expand to fill the screen.
-		if (!(GTK.GTK4 && fullScreen)) {
+		// In GTK4 fullscreen/maximized mode the shell fills the entire monitor. Don't
+		// pin the vboxHandle to a fixed size so that the content can expand to fill the
+		// screen.
+		if (!(GTK.GTK4 && (fullScreen || maximized))) {
 			GTK.gtk_widget_set_size_request (vboxHandle, boxWidth, boxHeight);
 		}
 	}
@@ -2600,6 +2601,12 @@ public void setMaximized (boolean maximized) {
 	super.setMaximized (maximized);
 	if (maximized) {
 		GTK.gtk_window_maximize (shellHandle);
+		// For GTK4, non-resizable shells have a fixed size request set on the vboxHandle.
+		// Proactively remove the size constraint so the content can fill the screen
+		// before gtk_size_allocate fires with the correct maximized dimensions.
+		if (GTK.GTK4 && (style & SWT.RESIZE) == 0) {
+			GTK.gtk_widget_set_size_request (vboxHandle, -1, -1);
+		}
 	} else {
 		GTK.gtk_window_unmaximize (shellHandle);
 	}
