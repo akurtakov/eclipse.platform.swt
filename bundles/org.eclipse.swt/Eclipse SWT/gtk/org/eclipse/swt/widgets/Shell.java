@@ -1845,22 +1845,32 @@ long gtk_size_allocate (long widget, long allocation) {
 	 *
 	 * This should be revisited at a later time, when the GTK4 port is more mature.
 	 * TODO: Make use of the entire vertical height
+	 *
+	 * The same problem applies when the shell is in fullscreen: gtk_window_get_default_size
+	 * returns the pre-fullscreen size. For fullscreen, use the full monitor geometry
+	 * without subtracting the header bar (which is hidden in fullscreen mode).
 	 */
 	if (GTK.GTK4) {
-		if(!GTK4.gtk_window_is_maximized(shellHandle)) {
+		if (!GTK4.gtk_window_is_maximized(shellHandle) && !fullScreen) {
 			GTK.gtk_window_get_default_size(shellHandle, widthA, heightA);
 		}
 		else {
 			long display = GDK.gdk_display_get_default();
 			long monitor = GDK.gdk_display_get_monitor_at_surface(display, paintSurface());
 			GDK.gdk_monitor_get_geometry(monitor, monitorSize);
-			long header = GTK4.gtk_window_get_titlebar(shellHandle);
-			int[] headerNaturalHeight = new int[1];
-			if (header != 0) {
-				GTK4.gtk_widget_measure(header, GTK.GTK_ORIENTATION_VERTICAL, -1, null, headerNaturalHeight, null, null);
-			}
 			widthA[0] = monitorSize.width;
-			heightA[0] = monitorSize.height - headerNaturalHeight[0];
+			if (fullScreen) {
+				// In fullscreen mode the header bar is hidden, use the full monitor height
+				heightA[0] = monitorSize.height;
+			} else {
+				// Maximized: subtract the header bar height
+				long header = GTK4.gtk_window_get_titlebar(shellHandle);
+				int[] headerNaturalHeight = new int[1];
+				if (header != 0) {
+					GTK4.gtk_widget_measure(header, GTK.GTK_ORIENTATION_VERTICAL, -1, null, headerNaturalHeight, null, null);
+				}
+				heightA[0] = monitorSize.height - headerNaturalHeight[0];
+			}
 		}
 	} else {
 		GTK3.gtk_window_get_size(shellHandle, widthA, heightA);
@@ -1871,8 +1881,10 @@ long gtk_size_allocate (long widget, long allocation) {
 	//	Bug 474235: on Wayland gtk_size_allocate() is called more frequently, causing an
 	//  infinitely recursive resize call. This causes non-resizable Shells/Dialogs to
 	//  crash. Fix: only call resizeBounds() on resizable Shells.
+	//  Exception: also call resizeBounds() for fullscreen shells so the content fills
+	//  the entire screen even when the shell was not created with SWT.RESIZE.
 	if ((!resized || oldWidth != width || oldHeight != height)
-			&& (OS.isWayland() ? ((style & SWT.RESIZE) != 0) : true)) {
+			&& (OS.isWayland() ? ((style & SWT.RESIZE) != 0 || fullScreen) : true)) {
 		oldWidth = width;
 		oldHeight = height;
 		resizeBounds (width, height, true); //this is called to resize child widgets when the shell is resized.
@@ -2283,7 +2295,11 @@ void resizeBounds (int width, int height, boolean notify) {
 	int boxWidth = width - 2*border;
 	int boxHeight = height - 2*border;
 	if ((style & SWT.RESIZE) == 0) {
-		GTK.gtk_widget_set_size_request (vboxHandle, boxWidth, boxHeight);
+		// In GTK4 fullscreen mode the shell fills the entire monitor. Don't pin the
+		// vboxHandle to a fixed size so that the content can expand to fill the screen.
+		if (!GTK.GTK4 || !fullScreen) {
+			GTK.gtk_widget_set_size_request (vboxHandle, boxWidth, boxHeight);
+		}
 	}
 	forceResize (boxWidth, boxHeight);
 	if (notify) {
@@ -2484,6 +2500,12 @@ public void setFullScreen (boolean fullScreen) {
 	checkWidget();
 	if (fullScreen) {
 		GTK.gtk_window_fullscreen (shellHandle);
+		// For GTK4, non-resizable shells have a fixed size request set on the vboxHandle.
+		// Proactively remove the size constraint so the content can fill the screen
+		// before gtk_size_allocate fires with the correct fullscreen dimensions.
+		if (GTK.GTK4 && (style & SWT.RESIZE) == 0) {
+			GTK.gtk_widget_set_size_request (vboxHandle, -1, -1);
+		}
 	} else {
 		GTK.gtk_window_unfullscreen (shellHandle);
 		if (maximized) {
