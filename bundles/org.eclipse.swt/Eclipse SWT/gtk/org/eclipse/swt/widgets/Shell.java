@@ -1851,10 +1851,7 @@ long gtk_size_allocate (long widget, long allocation) {
 	 * without subtracting the header bar (which is hidden in fullscreen mode).
 	 */
 	if (GTK.GTK4) {
-		if (!GTK4.gtk_window_is_maximized(shellHandle) && !fullScreen) {
-			GTK.gtk_window_get_default_size(shellHandle, widthA, heightA);
-		}
-		else {
+		if (fullScreen || GTK4.gtk_window_is_maximized(shellHandle)) {
 			long display = GDK.gdk_display_get_default();
 			long monitor = GDK.gdk_display_get_monitor_at_surface(display, paintSurface());
 			GDK.gdk_monitor_get_geometry(monitor, monitorSize);
@@ -1871,6 +1868,8 @@ long gtk_size_allocate (long widget, long allocation) {
 				}
 				heightA[0] = monitorSize.height - headerNaturalHeight[0];
 			}
+		} else {
+			GTK.gtk_window_get_default_size(shellHandle, widthA, heightA);
 		}
 	} else {
 		GTK3.gtk_window_get_size(shellHandle, widthA, heightA);
@@ -1884,7 +1883,7 @@ long gtk_size_allocate (long widget, long allocation) {
 	//  Exception: also call resizeBounds() for fullscreen shells so the content fills
 	//  the entire screen even when the shell was not created with SWT.RESIZE.
 	if ((!resized || oldWidth != width || oldHeight != height)
-			&& (OS.isWayland() ? ((style & SWT.RESIZE) != 0 || fullScreen) : true)) {
+			&& (!OS.isWayland() || (style & SWT.RESIZE) != 0 || fullScreen)) {
 		oldWidth = width;
 		oldHeight = height;
 		resizeBounds (width, height, true); //this is called to resize child widgets when the shell is resized.
@@ -2297,7 +2296,7 @@ void resizeBounds (int width, int height, boolean notify) {
 	if ((style & SWT.RESIZE) == 0) {
 		// In GTK4 fullscreen mode the shell fills the entire monitor. Don't pin the
 		// vboxHandle to a fixed size so that the content can expand to fill the screen.
-		if (!GTK.GTK4 || !fullScreen) {
+		if (!(GTK.GTK4 && fullScreen)) {
 			GTK.gtk_widget_set_size_request (vboxHandle, boxWidth, boxHeight);
 		}
 	}
