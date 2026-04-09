@@ -692,7 +692,7 @@ Rectangle computeTrimInPixels (int x, int y, int width, int height) {
 		trim.x -= tmp.left;
 		trim.y -= tmp.top;
 		trim.width += tmp.left + tmp.right;
-		if (tmp.bottom == 0 && tmp.top == 0) {
+		if (GTK.GTK4 || (tmp.bottom == 0 && tmp.top == 0)) {
 			Point widthNative = computeNativeSize(handle, trim.width, SWT.DEFAULT, true);
 			trim.height = widthNative.y;
 		} else {
@@ -704,7 +704,13 @@ Rectangle computeTrimInPixels (int x, int y, int width, int height) {
 			trim.x -= tmp.left;
 			trim.y -= tmp.top;
 			trim.width += tmp.left + tmp.right;
-			trim.height += tmp.top + tmp.bottom;
+			/*
+			 * In GTK4, computeNativeSize already returns the full natural height
+			 * including border, so avoid double-counting it here.
+			 */
+			if (!GTK.GTK4) {
+				trim.height += tmp.top + tmp.bottom;
+			}
 		}
 		if (!GTK.GTK4 || ((style & SWT.SEARCH) == 0) ) {
 			GdkRectangle icon_area = new GdkRectangle();
