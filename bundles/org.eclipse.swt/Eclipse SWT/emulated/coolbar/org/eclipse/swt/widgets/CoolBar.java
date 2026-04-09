@@ -895,9 +895,23 @@ void relayout() {
 	Point size = getSize();
 	int height = layoutItems();
 	if ((style & SWT.VERTICAL) != 0) {
+		/*
+		 * Skip the resize if the coolbar has not been allocated any space yet
+		 * (i.e. height is 0). Calling super.setSize(trim.width, 0) before the
+		 * parent layout has run would set ZERO_HEIGHT on GTK4, preventing a
+		 * proper initial layout.
+		 */
+		if (size.y == 0) return;
 		Rectangle trim = computeTrim (0, 0, height, 0);
 		if (height != size.x) super.setSize(trim.width, size.y);
 	} else {
+		/*
+		 * Skip the resize if the coolbar has not been allocated any space yet
+		 * (i.e. width is 0). Calling super.setSize(0, trim.height) before the
+		 * parent layout has run would set ZERO_WIDTH on GTK4, preventing a
+		 * proper initial layout.
+		 */
+		if (size.x == 0) return;
 		Rectangle trim = computeTrim (0, 0, 0, height);
 		if (height != size.y) super.setSize(size.x, trim.height);
 	}
