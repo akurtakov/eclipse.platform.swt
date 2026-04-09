@@ -3350,15 +3350,25 @@ Point getThickness (long widget) {
 	long context = GTK.gtk_widget_get_style_context (widget);
 	int state_flag = GTK.gtk_widget_get_state_flags(widget);
 	gtk_style_context_get_padding(context, state_flag, tmp);
-	GTK.gtk_style_context_save (context);
-	GTK.gtk_style_context_add_class (context, GTK.GTK_STYLE_CLASS_FRAME);
 	xthickness += tmp.left;
 	ythickness += tmp.top;
 	int state = GTK.gtk_widget_get_state_flags(widget);
-	gtk_style_context_get_border (context, state, tmp);
+	if (GTK.GTK4) {
+		/*
+		 * In GTK4, widgets like GtkScrolledWindow use the "has-frame" CSS class
+		 * (added via gtk_scrolled_window_set_has_frame()) rather than "frame".
+		 * The relevant CSS classes are already applied to the widget's style
+		 * context, so read the border directly without adding "frame" manually.
+		 */
+		gtk_style_context_get_border (context, state, tmp);
+	} else {
+		GTK.gtk_style_context_save (context);
+		GTK.gtk_style_context_add_class (context, GTK.GTK_STYLE_CLASS_FRAME);
+		gtk_style_context_get_border (context, state, tmp);
+		GTK.gtk_style_context_restore (context);
+	}
 	xthickness += tmp.left;
 	ythickness += tmp.top;
-	GTK.gtk_style_context_restore (context);
 	return new Point (xthickness, ythickness);
 }
 
