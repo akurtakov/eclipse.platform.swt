@@ -914,6 +914,20 @@ static void swt_fixed_size_allocate (GtkWidget *widget, int width, int height, i
 
 		list = list->next;
 	}
+
+	/*
+	 * GtkPopover children (e.g. popup menus) are attached via gtk_widget_set_parent()
+	 * but are NOT tracked in priv->children. Without a size allocation, their internal
+	 * buttons lack proper positions, preventing pointer events from mapping correctly.
+	 * This causes hover CSS states to get stuck, making multiple menu items appear
+	 * highlighted simultaneously. Calling gtk_popover_present() triggers the popover's
+	 * own size allocation pass, fixing pointer event handling and hover state redraws.
+	 */
+	for (GtkWidget* child = gtk_widget_get_first_child(widget); child != NULL; child = gtk_widget_get_next_sibling(child)) {
+		if (GTK_IS_POPOVER(child)) {
+			gtk_popover_present(GTK_POPOVER(child));
+		}
+	}
 }
 
 void swt_fixed_move (SwtFixed *fixed, GtkWidget *widget, gint x, gint y) {
