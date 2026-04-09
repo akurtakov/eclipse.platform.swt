@@ -640,9 +640,21 @@ boolean filterKey (long event) {
 		lastEventTime = time;
 		long imContext = imContext ();
 		if (imContext != 0) {
-			if (GTK.GTK4)
+			if (GTK.GTK4) {
+				/*
+				 * On GTK4/Wayland the IM context may consume non-text-producing keys
+				 * (Delete, BackSpace, arrow keys, function keys, etc.), returning true
+				 * from gtk_im_context_filter_keypress. This would prevent SWT from
+				 * sending KeyDown events for repeating keys. Skip the IM context for
+				 * such keys, as they don't need input-method processing.
+				 */
+				int keyval = GDK.gdk_key_event_get_keyval(event);
+				if (Display.translateKey(keyval) != 0) {
+					gdkEventKey = event;
+					return false;
+				}
 				return GTK4.gtk_im_context_filter_keypress (imContext, event);
-			else
+			} else
 				return GTK3.gtk_im_context_filter_keypress (imContext, event);
 		}
 	}
