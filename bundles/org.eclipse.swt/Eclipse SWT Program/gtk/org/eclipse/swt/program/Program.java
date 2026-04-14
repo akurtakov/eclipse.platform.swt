@@ -371,7 +371,7 @@ static boolean isExecutable(String fileName) {
 	long file = OS.g_file_new_for_path (fileNameBuffer);
 	boolean result = false;
 	if (file != 0) {
-		byte[] buffer = Converter.wcsToMbcs ("*", true); //$NON-NLS-1$
+		byte[] buffer = Converter.wcsToMbcs ("standard::content-type", true); //$NON-NLS-1$
 		long fileInfo = OS.g_file_query_info(file, buffer, 0, 0, 0);
 		if (fileInfo != 0) {
 			long contentType = OS.g_file_info_get_content_type(fileInfo);
