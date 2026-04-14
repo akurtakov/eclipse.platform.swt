@@ -11988,6 +11988,16 @@ fail:
 }
 #endif
 
+#ifndef NO_g_1menu_1item_1set_1icon
+JNIEXPORT void JNICALL OS_NATIVE(g_1menu_1item_1set_1icon)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
+{
+	OS_NATIVE_ENTER(env, that, g_1menu_1item_1set_1icon_FUNC);
+	g_menu_item_set_icon((GMenuItem *)arg0, (GIcon *)arg1);
+	OS_NATIVE_EXIT(env, that, g_1menu_1item_1set_1icon_FUNC);
+}
+#endif
+
 #ifndef NO_g_1menu_1item_1set_1submenu
 JNIEXPORT void JNICALL OS_NATIVE(g_1menu_1item_1set_1submenu)
 	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
