@@ -486,7 +486,43 @@ Point computeNativeSize (long h, int wHint, int hHint, boolean changed) {
 	if (fitModelToggled) {
 		GTK.gtk_cell_view_set_fit_model(cellHandle, false);
 	}
+
+	/*
+	 * In GTK4, SWT's global CSS rules (e.g. "button{min-height:0px}" and
+	 * "entry{min-height:26px}") reduce the combo widget below its natural Adwaita
+	 * height (~34px). These rules target all buttons/entries and cannot distinguish
+	 * the combo's internal widgets. Compensate by computing a height floor from the
+	 * Pango text metrics: GTK4 Adwaita sizes combos at approximately twice the
+	 * Pango line height (text content + equal amount of surrounding padding).
+	 */
+	if (GTK.GTK4 && hHint == SWT.DEFAULT) {
+		int naturalHeight = computeGTK4NaturalHeight();
+		if (naturalHeight > 0) {
+			nativeSize.y = Math.max(nativeSize.y, naturalHeight);
+		}
+	}
+
 	return nativeSize;
+}
+
+/**
+ * For GTK4, computes a natural height floor for the combo based on Pango font
+ * metrics. GTK4/Adwaita sizes combos at approximately twice the Pango line
+ * height (text content plus an equal amount of surrounding padding). This
+ * compensates for SWT CSS rules that reduce the combo below its theme height.
+ *
+ * @return the Pango-based natural height, or 0 if not applicable
+ */
+private int computeGTK4NaturalHeight() {
+	if (!GTK.GTK4) return 0;
+	long refHandle = entryHandle != 0 ? entryHandle : cellHandle;
+	if (refHandle == 0) return 0;
+	long layout = GTK.gtk_widget_create_pango_layout(refHandle, new byte[]{0});
+	if (layout == 0) return 0;
+	int[] fontH = new int[1];
+	OS.pango_layout_get_pixel_size(layout, null, fontH);
+	OS.g_object_unref(layout);
+	return fontH[0] > 0 ? fontH[0] * 2 : 0;
 }
 
 /**
@@ -1385,6 +1421,12 @@ public int getTextHeight () {
 	checkWidget();
 	GtkRequisition requisition = new GtkRequisition ();
 	gtk_widget_get_preferred_size (handle, requisition);
+	if (GTK.GTK4) {
+		int naturalHeight = computeGTK4NaturalHeight();
+		if (naturalHeight > 0) {
+			return Math.max(requisition.height, naturalHeight);
+		}
+	}
 	return requisition.height;
 }
 

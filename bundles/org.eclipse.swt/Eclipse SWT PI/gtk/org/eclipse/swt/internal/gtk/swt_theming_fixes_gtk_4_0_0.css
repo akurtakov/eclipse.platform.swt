@@ -1,7 +1,7 @@
 button.toggle {
 	padding: 0px;
 }
-button:not(.combo) {
+button {
 	min-height: 0px;
 	min-width: 0px;
 }
