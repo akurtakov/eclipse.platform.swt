@@ -1687,6 +1687,24 @@ int setBounds (int x, int y, int width, int height, boolean move, boolean resize
 		gtk_widget_show(topHandle);
 	}
 
+	/*
+	 * Bug in GTK4. A composite (e.g. the emulated CoolBar) may call setSize() on
+	 * itself with a 0 in one dimension (e.g. relayout() calling setSize(0, h) before
+	 * the parent layout has run). At that point both ZERO_WIDTH and ZERO_HEIGHT are
+	 * set because the widget has not yet been properly allocated. On GTK4, executing
+	 * such a bounds update triggers gtk_widget_size_allocate() via the show/allocate/
+	 * hide sequence in Control.setBounds(), which causes swt_fixed_size_allocate() to
+	 * push 0-dimension allocations to child widgets. These get queued as rendering
+	 * frames and produce an incorrect initial display.
+	 * The fix is to skip the premature bounds update entirely: the parent layout will
+	 * shortly provide the correct allocation.
+	 */
+	if (GTK.GTK4 && resize
+			&& (state & ZERO_WIDTH) != 0 && (state & ZERO_HEIGHT) != 0
+			&& (width == 0 || height == 0)) {
+		return 0;
+	}
+
 	int result = super.setBounds (x, y, width, height, move, resize);
 	if ((result & RESIZED) != 0 && layout != null) {
 		markLayout (false, false);
