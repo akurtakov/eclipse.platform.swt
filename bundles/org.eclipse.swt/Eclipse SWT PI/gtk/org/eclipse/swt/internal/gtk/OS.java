@@ -2406,6 +2406,11 @@ public static final native void g_menu_item_set_label(long menu_item, byte[] lab
  * @param data cast=(const gchar *)
  */
 public static final native void g_menu_item_set_attribute(long menu_item, byte[] attribute, byte[] format_string, long data);
+/**
+ * @param menu_item cast=(GMenuItem *)
+ * @param icon cast=(GIcon *)
+ */
+public static final native void g_menu_item_set_icon(long menu_item, long icon);
 
 /* GSimpleActionGroup */
 public static final native long g_simple_action_group_new();

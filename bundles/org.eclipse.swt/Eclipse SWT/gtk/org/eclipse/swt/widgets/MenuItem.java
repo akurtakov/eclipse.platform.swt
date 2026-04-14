@@ -981,6 +981,11 @@ public void setEnabled (boolean enabled) {
 }
 
 private void _setEnabledOrDisabledImage() {
+	if (GTK.GTK4) {
+		// GTK4 handles disabled appearance via CSS on the popover menu;
+		// no need for a separate disabled image
+		return;
+	}
 	if (!enabled) {
 		if (defaultDisableImage == null && image != null) {
 			defaultDisableImage = new Image(getDisplay(), image, SWT.IMAGE_DISABLE);
@@ -1028,16 +1033,32 @@ public void setID (int id) {
  */
 @Override
 public void setImage (Image image) {
-	//TODO: GTK4 Menu images with text are no longer supported
-	if (GTK.GTK4) return;
-
 	checkWidget();
 	if (this.image == image) return;
 	if ((style & SWT.SEPARATOR) != 0) return;
 	disposeDefaultDisabledImage();
 	super.setImage (image);
 
-	_setEnabledOrDisabledImage();
+	if (GTK.GTK4) {
+		_setMenuItemImageGtk4(image);
+	} else {
+		_setEnabledOrDisabledImage();
+	}
+}
+
+private void _setMenuItemImageGtk4 (Image image) {
+	if (image != null) {
+		long pixbuf = ImageList.createPixbuf(image);
+		long texture = GDK.gdk_texture_new_for_pixbuf(pixbuf);
+		OS.g_object_unref(pixbuf);
+		OS.g_menu_item_set_icon(handle, texture);
+		OS.g_object_unref(texture);
+	} else {
+		OS.g_menu_item_set_icon(handle, 0);
+	}
+	// GMenuItem changes require remove + re-insert to take effect in the GMenu model
+	OS.g_menu_remove(section.getSectionHandle(), section.getItemPosition(this));
+	OS.g_menu_insert_item(section.getSectionHandle(), section.getItemPosition(this), handle);
 }
 
 private void _setImage (Image image) {
