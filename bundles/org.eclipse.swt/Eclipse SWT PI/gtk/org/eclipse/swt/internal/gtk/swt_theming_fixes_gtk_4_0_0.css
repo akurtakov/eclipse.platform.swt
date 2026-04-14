@@ -1,7 +1,7 @@
 button.toggle {
 	padding: 0px;
 }
-button {
+button:not(.combo) {
 	min-height: 0px;
 	min-width: 0px;
 }
@@ -9,14 +9,4 @@ modelbutton {
     padding-top: 2px;
     padding-bottom: 2px;
     min-height: 0;
-}
-/*
- * The global 'button.toggle { padding: 0px }' and 'button { min-height: 0px }' rules
- * above reduce the GtkToggleButton inside a GtkComboBox from its natural Adwaita
- * height (~34px) to ~26px, which makes the whole combo too small.
- * Restore natural padding so that the combo button matches the entry height and the
- * overall combo height is correct (~34px) for both editable and read-only combos.
- */
-combobox button {
-    padding: 8px;
 }
