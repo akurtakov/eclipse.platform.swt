@@ -10,3 +10,11 @@ modelbutton {
     padding-bottom: 2px;
     min-height: 0;
 }
+/*
+ * The global 'entry { min-height: 26px }' fix from swt_theming_fixes_gtk_3_20.css
+ * reduces the GtkEntry inside a combo from its natural GTK4 height (~34px) down to
+ * ~28px. Restore a larger minimum so that the combo keeps its expected height.
+ */
+combobox entry {
+    min-height: 32px;
+}
