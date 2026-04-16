@@ -745,13 +745,17 @@ void createHandle (int index) {
 			if (isChildShell && (style & SWT.ON_TOP) != 0) type = GTK.GTK_WINDOW_POPUP;
 			if (GTK.GTK4) {
 				shellHandle = GTK4.gtk_window_new();
-				if (OS.isWayland()) {
+				if (type != GTK.GTK_WINDOW_POPUP) {
 					long headerbar = GTK4.gtk_window_get_titlebar(shellHandle);
 					if (headerbar == 0) {
-					    // Force-install a headerbar if none exists in order to be able to qurey its size later
-						// If none set by the app gtk_window_get_titlebar returns 0 but Gtk still draws one internally
-					    long hb = GTK4.gtk_header_bar_new();
-					    GTK4.gtk_window_set_titlebar(shellHandle, hb);
+						/*
+						 * Force-install a headerbar if none exists in order to be able to
+						 * query its size later. If none is set by the app,
+						 * gtk_window_get_titlebar() can return 0 even though GTK draws one
+						 * internally.
+						 */
+						long hb = GTK4.gtk_header_bar_new();
+						GTK4.gtk_window_set_titlebar(shellHandle, hb);
 					}
 				}
 				if (type == GTK.GTK_WINDOW_POPUP) {
