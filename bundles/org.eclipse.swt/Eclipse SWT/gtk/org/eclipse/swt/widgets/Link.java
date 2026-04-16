@@ -612,7 +612,7 @@ void gtk4_motion_event(long controller, double x, double y, long event) {
 	int hitY = (int) y;
 	if ((style & SWT.MIRRORED) != 0) hitX = getClientWidth() - hitX;
 
-	int state = GDK.gdk_event_get_modifier_state(event);
+	int state = event != 0 ? GDK.gdk_event_get_modifier_state(event) : 0;
 	if ((state & GDK.GDK_BUTTON1_MASK) != 0) {
 		int oldSelection = selection.y;
 		selection.y = layout.getOffset(hitX, hitY, null);
