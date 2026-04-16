@@ -60,7 +60,7 @@ public void test_ConstructorLorg_eclipse_swt_widgets_CompositeI() {
 	link.dispose();
 	link = new Link(shell, SWT.BORDER);
 	link.dispose();
-	assertThrows(IllegalArgumentException.class, () -> new Link(null, 0));
+	assertThrows(IllegalArgumentException.class, () -> new Link(null, 0), "No exception thrown for parent == null");
 }
 
 @Test
@@ -76,13 +76,13 @@ public void test_addSelectionListenerLorg_eclipse_swt_events_SelectionListener()
 		}
 	};
 
-	assertThrows(IllegalArgumentException.class, () -> link.addSelectionListener(null));
+	assertThrows(IllegalArgumentException.class, () -> link.addSelectionListener(null), "No exception thrown for addSelectionListener with null argument");
 
 	link.addSelectionListener(listener);
 	link.notifyListeners(SWT.Selection, new Event());
 	assertTrue(listenerCalled);
 
-	assertThrows(IllegalArgumentException.class, () -> link.removeSelectionListener(null));
+	assertThrows(IllegalArgumentException.class, () -> link.removeSelectionListener(null), "No exception thrown for removeSelectionListener with null argument");
 	listenerCalled = false;
 	link.removeSelectionListener(listener);
 	link.notifyListeners(SWT.Selection, new Event());
@@ -158,7 +158,7 @@ public void test_setTextLjava_lang_String() {
 		link.setText(text);
 		assertEquals(link.getText() , text);
 	}
-	assertThrows(IllegalArgumentException.class, () -> link.setText(null));
+	assertThrows(IllegalArgumentException.class, () -> link.setText(null), "No exception thrown for text == null");
 }
 
 @Test
