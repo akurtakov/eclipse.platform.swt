@@ -59,6 +59,8 @@ public class Link extends Control {
 	int focusIndex;
 
 	static final RGB LINK_DISABLED_FOREGROUND = new RGB (172, 168, 153);
+	static final int PRIMARY_BUTTON = 1;
+	static final int SINGLE_PRESS = 1;
 
 /**
  * Constructs a new instance of this class given its parent
@@ -418,7 +420,7 @@ long gtk3_button_release_event (long widget, long event) {
 int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long event) {
 	int result = super.gtk_gesture_press_event(gesture, n_press, x, y, event);
 
-	if (GTK.gtk_gesture_single_get_current_button(gesture) != 1 || n_press != 1) return result;
+	if (GTK.gtk_gesture_single_get_current_button(gesture) != PRIMARY_BUTTON || n_press != SINGLE_PRESS) return result;
 
 	if (focusIndex != -1) setFocus();
 	int hitX = (int) x;
@@ -454,7 +456,7 @@ int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long 
 @Override
 int gtk_gesture_release_event(long gesture, int n_press, double x, double y, long event) {
 	int result = super.gtk_gesture_release_event(gesture, n_press, x, y, event);
-	if (focusIndex == -1 || GTK.gtk_gesture_single_get_current_button(gesture) != 1) return result;
+	if (focusIndex == -1 || GTK.gtk_gesture_single_get_current_button(gesture) != PRIMARY_BUTTON) return result;
 
 	int hitX = (int) x;
 	int hitY = (int) y;
@@ -613,6 +615,7 @@ void gtk4_motion_event(long controller, double x, double y, long event) {
 	if ((style & SWT.MIRRORED) != 0) hitX = getClientWidth() - hitX;
 
 	int state = event != 0 ? GDK.gdk_event_get_modifier_state(event) : 0;
+	// Motion events report pressed buttons in the modifier state mask.
 	if ((state & GDK.GDK_BUTTON1_MASK) != 0) {
 		int oldSelection = selection.y;
 		selection.y = layout.getOffset(hitX, hitY, null);
