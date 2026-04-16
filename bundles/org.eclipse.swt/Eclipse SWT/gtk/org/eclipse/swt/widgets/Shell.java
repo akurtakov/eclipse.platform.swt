@@ -2348,6 +2348,7 @@ int setBounds (int x, int y, int width, int height, boolean move, boolean resize
 		if (geometry.getMaxHeight() > 0) {
 			height = Math.min(height, geometry.getMaxHeight());
 		}
+		boolean changed = width != oldWidth || height != oldHeight;
 		/*
 		* If the shell is created without a RESIZE style bit, and the
 		* minWidth/minHeight/maxWidth/maxHeight have been set, allow the resize.
@@ -2355,26 +2356,38 @@ int setBounds (int x, int y, int width, int height, boolean move, boolean resize
 		if ((style & SWT.RESIZE) != 0 || (geometry.getMinHeight()  != 0 || geometry.getMinWidth()  != 0 || geometry.getMaxHeight()  != 0 || geometry.getMaxWidth()  != 0)) {
 			if (GTK.GTK4) {
 				/*
-				 * On GTK4, GtkWindow size includes the header bar. In order to keep window size allocation of the client area
-				 * consistent with previous versions of SWT, we need to include the header bar height in addition to the given height value.
+				 * On GTK4, GtkWindow size includes the header bar. In order to keep window size
+				 * allocation of the client area consistent with previous versions of SWT, we need
+				 * to include the header bar height in addition to the given height value.
+				 * Skip when size is unchanged to avoid a needless gtk_widget_measure call and
+				 * the notify::default-width/height signals that gtk_window_set_default_size fires.
 				 */
-				long header = GTK4.gtk_window_get_titlebar(shellHandle);
-				int[] headerNaturalHeight = new int[1];
-				if (header != 0) {
-					GTK4.gtk_widget_measure(header, GTK.GTK_ORIENTATION_VERTICAL, -1, null, headerNaturalHeight, null, null);
+				if (changed) {
+					long header = GTK4.gtk_window_get_titlebar(shellHandle);
+					int[] headerNaturalHeight = new int[1];
+					if (header != 0) {
+						GTK4.gtk_widget_measure(header, GTK.GTK_ORIENTATION_VERTICAL, -1, null, headerNaturalHeight, null, null);
+					}
+					GTK.gtk_window_set_default_size(shellHandle, width, height + headerNaturalHeight[0]);
 				}
-				GTK.gtk_window_set_default_size(shellHandle, width, height + headerNaturalHeight[0]);
 			} else {
 				GTK3.gtk_window_resize (shellHandle, width, height);
 			}
 		}
-		boolean changed = width != oldWidth || height != oldHeight;
 		if (changed) {
 			oldWidth = width;
 			oldHeight = height;
 			result |= RESIZED;
 		}
-		resizeBounds (width, height, changed);
+		/*
+		 * On GTK4, skip the forceResize / child re-layout when dimensions are
+		 * unchanged to avoid needless preferred-size queries and size-allocate calls.
+		 * GTK3 keeps its existing behaviour (always calls resizeBounds) because
+		 * redrawWindow / enableWindow also need to be kept in sync there.
+		 */
+		if (!GTK.GTK4 || changed) {
+			resizeBounds (width, height, changed);
+		}
 	}
 	return result;
 }
