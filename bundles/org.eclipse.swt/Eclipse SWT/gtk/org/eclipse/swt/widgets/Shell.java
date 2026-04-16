@@ -752,7 +752,8 @@ void createHandle (int index) {
 						 * Force-install a headerbar if none exists in order to be able to
 						 * query its size later. If none is set by the app,
 						 * gtk_window_get_titlebar() can return 0 even though GTK draws one
-						 * internally.
+						 * internally. Popup windows are excluded because they are undecorated
+						 * and do not have a title bar.
 						 */
 						long hb = GTK4.gtk_header_bar_new();
 						GTK4.gtk_window_set_titlebar(shellHandle, hb);
@@ -984,8 +985,13 @@ void hookEvents () {
 		 * the title bar). This is used by gtk_resize() to update child widget sizes
 		 * with the correct values, especially for maximized windows where
 		 * notify::maximized fires before the WM has applied the new geometry.
+		 * Popup windows (child shells with SWT.ON_TOP) are undecorated and excluded
+		 * from this handling, consistent with the headerbar installation in createHandle.
 		 */
-		OS.g_signal_connect(shellHandle, OS.resize, display.resizeProc, 0);
+		boolean isNonPopupWindow = parent == null || (style & SWT.ON_TOP) == 0;
+		if (isNonPopupWindow) {
+			OS.g_signal_connect(shellHandle, OS.resize, display.resizeProc, 0);
+		}
 	} else {
 		OS.g_signal_connect_closure_by_id (shellHandle, display.signalIds [WINDOW_STATE_EVENT], 0, display.getClosure (WINDOW_STATE_EVENT), false);
 		OS.g_signal_connect_closure_by_id (shellHandle, display.signalIds [CONFIGURE_EVENT], 0, display.getClosure (CONFIGURE_EVENT), false);

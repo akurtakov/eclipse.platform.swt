@@ -1108,6 +1108,17 @@ long gtk3_show_help (long widget, long helpType) {
 	return 0;
 }
 
+/*
+ * Called by Display.resizeProc() when the GTK4 'resize' signal fires on a
+ * GtkWindow. The signal delivers the actual content-area dimensions (width,
+ * height) after the window manager has applied the new geometry - WITHOUT
+ * the title bar height included. Subclasses that need to respond to resize
+ * events on a GtkWindow (e.g. Shell) should override this method.
+ *
+ * The default implementation delegates to gtk_size_allocate(widget, 0) to
+ * preserve the existing behaviour for widgets such as ExpandItem that connect
+ * the 'resize' signal on a non-window child widget.
+ */
 long gtk_resize (long widget, int width, int height) {
 	return gtk_size_allocate(widget, 0);
 }
