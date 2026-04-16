@@ -1108,6 +1108,10 @@ long gtk3_show_help (long widget, long helpType) {
 	return 0;
 }
 
+long gtk_resize (long widget, int width, int height) {
+	return gtk_size_allocate(widget, 0);
+}
+
 long gtk_size_allocate (long widget, long allocation) {
 	return 0;
 }

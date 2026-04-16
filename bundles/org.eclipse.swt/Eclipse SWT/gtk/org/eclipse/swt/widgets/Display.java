@@ -6130,7 +6130,7 @@ void activateProc(long action, long parameter, long user_data) {
 
 void resizeProc(long handle, int width, int height) {
 	Widget widget = getWidget(handle);
-	if (widget != null) widget.gtk_size_allocate(handle, 0);
+	if (widget != null) widget.gtk_resize(handle, width, height);
 }
 
 long notifyProc (long object, long param_spec, long user_data) {

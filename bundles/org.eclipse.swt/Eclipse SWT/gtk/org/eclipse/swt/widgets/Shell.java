@@ -978,6 +978,14 @@ void hookEvents () {
 		OS.g_signal_connect(shellHandle, OS.notify_default_height, display.notifyProc, Widget.NOTIFY_DEFAULT_HEIGHT);
 		OS.g_signal_connect(shellHandle, OS.notify_default_width, display.notifyProc, Widget.NOTIFY_DEFAULT_WIDTH);
 		OS.g_signal_connect(shellHandle, OS.notify_maximized, display.notifyProc, Widget.NOTIFY_MAXIMIZED);
+		/*
+		 * Connect to GTK4's 'resize' signal which fires AFTER the window manager has
+		 * resized the window with the actual new content-area dimensions (without
+		 * the title bar). This is used by gtk_resize() to update child widget sizes
+		 * with the correct values, especially for maximized windows where
+		 * notify::maximized fires before the WM has applied the new geometry.
+		 */
+		OS.g_signal_connect(shellHandle, OS.resize, display.resizeProc, 0);
 	} else {
 		OS.g_signal_connect_closure_by_id (shellHandle, display.signalIds [WINDOW_STATE_EVENT], 0, display.getClosure (WINDOW_STATE_EVENT), false);
 		OS.g_signal_connect_closure_by_id (shellHandle, display.signalIds [CONFIGURE_EVENT], 0, display.getClosure (CONFIGURE_EVENT), false);
@@ -1814,9 +1822,29 @@ long gtk3_key_press_event (long widget, long event) {
 }
 
 @Override
+long gtk_resize (long widget, int width, int height) {
+	/*
+	 * GTK4 'resize' signal fires AFTER the window manager has applied the new
+	 * window geometry. The width and height parameters are the actual content-area
+	 * dimensions (without the title bar / header bar), so they can be passed to
+	 * resizeBounds() directly without any adjustment.
+	 *
+	 * This correctly handles maximized windows where notify::maximized (and thus
+	 * gtk_size_allocate) fires BEFORE the WM has resized the window - at that
+	 * point the monitor-geometry estimate may be wrong. The 'resize' signal always
+	 * delivers the authoritative post-resize dimensions.
+	 */
+	if (GTK.GTK4 && (!resized || oldWidth != width || oldHeight != height)) {
+		oldWidth = width;
+		oldHeight = height;
+		resizeBounds(width, height, true);
+	}
+	return 0;
+}
+
+@Override
 long gtk_size_allocate (long widget, long allocation) {
 	int width, height;
-	GdkRectangle monitorSize = new GdkRectangle();
 	int[] widthA = new int [1];
 	int[] heightA = new int [1];
 
@@ -1825,30 +1853,32 @@ long gtk_size_allocate (long widget, long allocation) {
 	 * if the window is maximized. Due to this it cannot be used when the shell has
 	 * been maximized. To fix this, get the monitor geometry ONLY when the window is
 	 * maximized and use this as the dimensions.
+	 *
+	 * For GTK4 maximized windows the authoritative dimensions now come from the
+	 * 'resize' signal (handled in gtk_resize), which fires after the WM applies
+	 * the new geometry. Skip the monitor-geometry estimate here to avoid briefly
+	 * sizing child widgets to an incorrect value.
 	 */
 	if (GTK.GTK4) {
+		if (GTK4.gtk_window_is_maximized(shellHandle)) {
+			// Defer to gtk_resize() which is called from the 'resize' signal and
+			// receives the correct post-resize content-area dimensions.
+			return 0;
+		}
 		long header = GTK4.gtk_window_get_titlebar(shellHandle);
 		int[] headerNaturalHeight = new int[1];
 		if (header != 0) {
 			GTK4.gtk_widget_measure(header, GTK.GTK_ORIENTATION_VERTICAL, -1, null, headerNaturalHeight, null, null);
 		}
-		if(!GTK4.gtk_window_is_maximized(shellHandle)) {
-			GTK.gtk_window_get_default_size(shellHandle, widthA, heightA);
-			/*
-			 * gtk_window_set_default_size() stores the total GTK window height (which
-			 * includes the header bar). Subtract the header bar height here so that
-			 * resizeBounds() receives the client-area height only, consistent with
-			 * what setBounds() passes.
-			 */
-			if (heightA[0] > 0) {
-				heightA[0] = Math.max(1, heightA[0] - headerNaturalHeight[0]);
-			}
-		} else {
-			long display = GDK.gdk_display_get_default();
-			long monitor = GDK.gdk_display_get_monitor_at_surface(display, paintSurface());
-			GDK.gdk_monitor_get_geometry(monitor, monitorSize);
-			widthA[0] = monitorSize.width;
-			heightA[0] = monitorSize.height - headerNaturalHeight[0];
+		GTK.gtk_window_get_default_size(shellHandle, widthA, heightA);
+		/*
+		 * gtk_window_set_default_size() stores the total GTK window height (which
+		 * includes the header bar). Subtract the header bar height here so that
+		 * resizeBounds() receives the client-area height only, consistent with
+		 * what setBounds() passes.
+		 */
+		if (heightA[0] > 0) {
+			heightA[0] = Math.max(1, heightA[0] - headerNaturalHeight[0]);
 		}
 	} else {
 		GTK3.gtk_window_get_size(shellHandle, widthA, heightA);
