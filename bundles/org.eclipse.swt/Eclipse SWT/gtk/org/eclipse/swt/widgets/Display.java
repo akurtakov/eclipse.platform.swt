@@ -3403,14 +3403,14 @@ GdkRGBA styleContextGetColor(long context, int flag) {
 	* Reference: https://blogs.gnome.org/mclasen/2015/11/20/a-gtk-update/
 	*/
 	GdkRGBA rgba = new GdkRGBA ();
+	GTK.gtk_style_context_save(context);
+	GTK.gtk_style_context_set_state(context, flag);
 	if (GTK.GTK4) {
 		GTK4.gtk_style_context_get_color(context, rgba);
 	} else {
-		GTK.gtk_style_context_save(context);
-		GTK.gtk_style_context_set_state(context, flag);
 		GTK3.gtk_style_context_get_color (context, flag, rgba);
-		GTK.gtk_style_context_restore(context);
 	}
+	GTK.gtk_style_context_restore(context);
 	return rgba;
 }
 
