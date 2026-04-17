@@ -887,13 +887,14 @@ int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long 
 		 * coordinates, but the SWT event x/y must be in ToolBar-relative
 		 * coordinates so that callers can use toolBar.toDisplay(event.x, event.y).
 		 * Translate the arrow button's origin into the ToolBar's coordinate space.
+		 * If translation fails, fall back to the parent-relative allocation.
 		 */
 		double[] destX = new double[1];
 		double[] destY = new double[1];
-		GTK4.gtk_widget_translate_coordinates(arrowHandle, parent.handle, 0, 0, destX, destY);
-		e.x = (int) destX[0];
+		boolean translated = GTK4.gtk_widget_translate_coordinates(arrowHandle, parent.handle, 0, 0, destX, destY);
+		e.x = translated ? (int) destX[0] : allocation.x;
 		if ((style & SWT.MIRRORED) != 0) e.x = parent.getClientWidth() - allocation.width - e.x;
-		e.y = (int) destY[0] + allocation.height;
+		e.y = translated ? (int) destY[0] + allocation.height : allocation.y + allocation.height;
 		sendSelectionEvent(SWT.Selection, e, false);
 		return GTK4.GTK_EVENT_SEQUENCE_CLAIMED;
 	}
