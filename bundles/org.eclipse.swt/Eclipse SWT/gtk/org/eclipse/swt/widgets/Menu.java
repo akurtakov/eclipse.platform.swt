@@ -1437,9 +1437,23 @@ void adjustParentWindowWayland (long eventPtr) {
 /**
  * In GTK4, ensure popup menus are measured right before showing them,
  * so sections/separators contribute to the final popover height.
+ * <p>
+ * GTK4's GtkPopoverMenu builds its internal widget tree (including section
+ * separator rows) lazily. Calling gtk_widget_realize first ensures the tree
+ * is fully constructed from the GMenuModel before we measure, analogous to
+ * the gtk_widget_show() call used in the GTK3 verifyMenuPosition workaround.
+ * Without this, gtk_widget_measure may return 0 on the very first show
+ * (unrealized widget) and the size_request would not be applied.
+ * </p>
  */
 void ensureGtk4PopupMenuHeight() {
 	if (!GTK.GTK4 || (style & SWT.POP_UP) == 0) return;
+
+	/*
+	 * Realize the popover so its internal widget tree (rows, section separators)
+	 * is built from the GMenuModel before we measure it.
+	 */
+	GTK.gtk_widget_realize(handle);
 
 	int [] naturalHeight = new int [1];
 	GTK4.gtk_widget_measure(handle, GTK.GTK_ORIENTATION_VERTICAL, -1, null, naturalHeight, null, null);
