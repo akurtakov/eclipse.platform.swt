@@ -879,7 +879,7 @@ int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long 
 	if ((style & SWT.DROP_DOWN) != 0 && arrowHandle != 0
 			&& GTK.gtk_event_controller_get_widget(gesture) == arrowHandle
 			&& n_press == 1
-			&& GTK.gtk_gesture_single_get_current_button(gesture) == GDK.GDK_BUTTON_PRIMARY) {
+			&& GTK.gtk_gesture_single_get_current_button(gesture) == 1) {
 		Event e = new Event();
 		e.detail = SWT.ARROW;
 		GtkAllocation allocation = new GtkAllocation();
