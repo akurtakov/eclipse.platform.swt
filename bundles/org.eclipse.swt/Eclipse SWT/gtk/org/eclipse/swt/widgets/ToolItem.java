@@ -877,7 +877,9 @@ int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long 
 	 * SWT.ARROW selection detail to the listener (e.g. to open a drop-down menu).
 	 */
 	if ((style & SWT.DROP_DOWN) != 0 && arrowHandle != 0
-			&& GTK.gtk_event_controller_get_widget(gesture) == arrowHandle) {
+			&& GTK.gtk_event_controller_get_widget(gesture) == arrowHandle
+			&& n_press == 1
+			&& GTK.gtk_gesture_single_get_current_button(gesture) == GDK.GDK_BUTTON_PRIMARY) {
 		Event e = new Event();
 		e.detail = SWT.ARROW;
 		GtkAllocation allocation = new GtkAllocation();
