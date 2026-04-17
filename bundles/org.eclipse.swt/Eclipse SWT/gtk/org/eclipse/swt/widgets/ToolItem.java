@@ -879,6 +879,7 @@ void hookEvents () {
 				long clickGesture = GTK4.gtk_gesture_click_new();
 				OS.g_signal_connect(clickGesture, OS.pressed, display.gesturePressReleaseProc, GESTURE_PRESSED);
 				GTK4.gtk_widget_add_controller(arrowHandle, clickGesture);
+				OS.g_signal_connect_closure(arrowHandle, OS.clicked, display.getClosure(CLICKED), false);
 			}
 
 			/*
