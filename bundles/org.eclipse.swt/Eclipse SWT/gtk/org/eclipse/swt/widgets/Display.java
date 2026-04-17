@@ -3312,7 +3312,7 @@ private void initializeSystemColorsLink() {
 		long window = GTK4.gtk_window_new();
 		long button = GTK.gtk_button_new();
 		GTK4.gtk_window_set_child(window, button);
-		GTK.gtk_widget_add_css_class(button, OS.ascii("link"));
+		GTK.gtk_widget_add_css_class(button, Converter.wcsToMbcs("link", true));
 		long styleContextButton = GTK.gtk_widget_get_style_context(button);
 		COLOR_LINK_FOREGROUND_RGBA = styleContextGetColor(styleContextButton, GTK.GTK_STATE_FLAG_NORMAL);
 		GTK4.gtk_window_destroy(window);
