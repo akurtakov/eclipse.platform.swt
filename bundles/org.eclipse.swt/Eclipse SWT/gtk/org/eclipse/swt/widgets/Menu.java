@@ -326,9 +326,13 @@ void _setVisible (boolean visible) {
 					long currentParent = GTK.gtk_widget_get_parent(handle);
 					if (currentParent == parent.handle) {
 						double[] relX = new double[1], relY = new double[1];
-						GTK4.gtk_widget_translate_coordinates(parent.getShell().topHandle(), parent.handle, x, y, relX, relY);
-						popoverPosition.x = (int) relX[0];
-						popoverPosition.y = (int) relY[0];
+						if (GTK4.gtk_widget_translate_coordinates(parent.getShell().topHandle(), parent.handle, x, y, relX, relY)) {
+							popoverPosition.x = (int) relX[0];
+							popoverPosition.y = (int) relY[0];
+						} else {
+							popoverPosition.x = x;
+							popoverPosition.y = y;
+						}
 					} else {
 						popoverPosition.x = x;
 						popoverPosition.y = y;
