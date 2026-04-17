@@ -882,9 +882,18 @@ int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long 
 		e.detail = SWT.ARROW;
 		GtkAllocation allocation = new GtkAllocation();
 		GTK.gtk_widget_get_allocation(arrowHandle, allocation);
-		e.x = allocation.x;
+		/*
+		 * On GTK4 gtk_widget_get_allocation returns parent-widget-relative
+		 * coordinates, but the SWT event x/y must be in ToolBar-relative
+		 * coordinates so that callers can use toolBar.toDisplay(event.x, event.y).
+		 * Translate the arrow button's origin into the ToolBar's coordinate space.
+		 */
+		double[] destX = new double[1];
+		double[] destY = new double[1];
+		GTK4.gtk_widget_translate_coordinates(arrowHandle, parent.handle, 0, 0, destX, destY);
+		e.x = (int) destX[0];
 		if ((style & SWT.MIRRORED) != 0) e.x = parent.getClientWidth() - allocation.width - e.x;
-		e.y = allocation.y + allocation.height;
+		e.y = (int) destY[0] + allocation.height;
 		sendSelectionEvent(SWT.Selection, e, false);
 		return GTK4.GTK_EVENT_SEQUENCE_CLAIMED;
 	}
