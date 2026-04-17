@@ -869,6 +869,23 @@ long gtk_mnemonic_activate (long widget, long arg1) {
 }
 
 @Override
+int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long event) {
+	if ((style & SWT.DROP_DOWN) != 0 && arrowHandle != 0
+			&& GTK.gtk_event_controller_get_widget(gesture) == arrowHandle) {
+		Event e = new Event();
+		e.detail = SWT.ARROW;
+		GtkAllocation allocation = new GtkAllocation();
+		GTK.gtk_widget_get_allocation(arrowHandle, allocation);
+		e.x = allocation.x;
+		if ((style & SWT.MIRRORED) != 0) e.x = parent.getClientWidth() - allocation.width - e.x;
+		e.y = allocation.y + allocation.height;
+		sendSelectionEvent(SWT.Selection, e, false);
+		return GTK4.GTK_EVENT_SEQUENCE_CLAIMED;
+	}
+	return GTK4.GTK_EVENT_SEQUENCE_NONE;
+}
+
+@Override
 void hookEvents () {
 	super.hookEvents ();
 	if ((style & SWT.SEPARATOR) != 0) return;
@@ -879,7 +896,6 @@ void hookEvents () {
 				long clickGesture = GTK4.gtk_gesture_click_new();
 				OS.g_signal_connect(clickGesture, OS.pressed, display.gesturePressReleaseProc, GESTURE_PRESSED);
 				GTK4.gtk_widget_add_controller(arrowHandle, clickGesture);
-				OS.g_signal_connect_closure(arrowHandle, OS.clicked, display.getClosure(CLICKED), false);
 			}
 
 			/*
