@@ -312,7 +312,7 @@ void _setVisible (boolean visible) {
 					popoverPosition.y = y;
 					popoverPosition.width = popoverPosition.height = 1;
 					GTK.gtk_popover_set_pointing_to(handle, popoverPosition);
-
+					updateGtk4PopupMenuSize();
 					GTK.gtk_popover_popup(handle);
 				} else {
 					// Create the GdkEvent manually as we need to control
@@ -357,6 +357,7 @@ void _setVisible (boolean visible) {
 				}
 			} else {
 				if (GTK.GTK4) {
+					updateGtk4PopupMenuSize();
 					GTK.gtk_popover_popup(handle);
 				} else {
 					/*
@@ -1433,6 +1434,16 @@ void adjustParentWindowWayland (long eventPtr) {
 	return;
 }
 
+void updateGtk4PopupMenuSize() {
+	if (!GTK.GTK4 || (style & SWT.POP_UP) == 0) return;
+
+	int [] naturalHeight = new int [1];
+	GTK4.gtk_widget_measure(handle, GTK.GTK_ORIENTATION_VERTICAL, -1, null, naturalHeight, null, null);
+	if (naturalHeight[0] > 0) {
+		GTK.gtk_widget_set_size_request(handle, -1, naturalHeight[0]);
+	}
+}
+
 /**
  * Feature in GTK3 on X11: context menus in SWT are populated
  * dynamically, sometimes asynchronously outside of SWT
@@ -1508,4 +1519,3 @@ public void setVisible (boolean visible) {
 	}
 }
 }
-
