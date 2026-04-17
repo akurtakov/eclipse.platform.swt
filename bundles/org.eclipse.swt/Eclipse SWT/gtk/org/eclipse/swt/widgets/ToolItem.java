@@ -870,6 +870,12 @@ long gtk_mnemonic_activate (long widget, long arg1) {
 
 @Override
 int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long event) {
+	/*
+	 * Feature in GTK4. For DROP_DOWN items, the arrow portion is a GtkMenuButton
+	 * (arrowHandle) that is separate from the main button. We attach a gesture
+	 * controller to arrowHandle and detect it here in order to send the
+	 * SWT.ARROW selection detail to the listener (e.g. to open a drop-down menu).
+	 */
 	if ((style & SWT.DROP_DOWN) != 0 && arrowHandle != 0
 			&& GTK.gtk_event_controller_get_widget(gesture) == arrowHandle) {
 		Event e = new Event();
