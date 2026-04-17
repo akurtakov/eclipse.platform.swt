@@ -1434,13 +1434,17 @@ void adjustParentWindowWayland (long eventPtr) {
 	return;
 }
 
+/**
+ * In GTK4, ensure popup menus are measured right before showing them,
+ * so sections/separators contribute to the final popover height.
+ */
 void updateGtk4PopupMenuSize() {
 	if (!GTK.GTK4 || (style & SWT.POP_UP) == 0) return;
 
-	int [] naturalHeight = new int [1];
-	GTK4.gtk_widget_measure(handle, GTK.GTK_ORIENTATION_VERTICAL, -1, null, naturalHeight, null, null);
-	if (naturalHeight[0] > 0) {
-		GTK.gtk_widget_set_size_request(handle, -1, naturalHeight[0]);
+	int [] naturalHeightOut = new int [1];
+	GTK4.gtk_widget_measure(handle, GTK.GTK_ORIENTATION_VERTICAL, -1, null, naturalHeightOut, null, null);
+	if (naturalHeightOut[0] > 0) {
+		GTK.gtk_widget_set_size_request(handle, -1, naturalHeightOut[0]);
 	}
 }
 
