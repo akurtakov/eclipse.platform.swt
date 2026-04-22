@@ -27,6 +27,8 @@ import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.TreeListener;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -1180,6 +1182,45 @@ public void test_setItemCount_itemCount2() {
 		new TreeItem(item_0, 0, 0);
 		assertEquals(10, item_0.getItemCount());
 	});
+}
+
+@Test
+public void test_setImage_inSetData_nocrash() {
+	// Regression test for issue 678: calling TreeItem.setImage() from inside a
+	// SWT.SetData listener must not crash (SIGSEGV) on GTK3. The crash was caused
+	// by createRenderers() calling gtk_tree_view_column_clear() while GTK was
+	// iterating the column's cell renderers in cell_set_cell_data().
+	tree.dispose();
+	List<Image> images = new ArrayList<>();
+	try {
+		tree = new Tree(shell, SWT.VIRTUAL | SWT.CHECK);
+		setWidget(tree);
+		Display display = shell.getDisplay();
+		tree.addListener(SWT.SetData, event -> {
+			TreeItem item = (TreeItem) event.item;
+			item.setText("Item " + tree.indexOf(item));
+			Image image = new Image(display, 20, 20);
+			GC gc = new GC(image);
+			try {
+				gc.setBackground(display.getSystemColor(SWT.COLOR_GREEN));
+				gc.fillRectangle(image.getBounds());
+			} finally {
+				gc.dispose();
+			}
+			images.add(image);
+			item.setImage(image);
+		});
+		tree.setItemCount(100);
+		shell.setLayout(new FillLayout());
+		shell.setSize(400, 600);
+		shell.open();
+		long end = System.currentTimeMillis() + 1000;
+		while (!shell.isDisposed() && System.currentTimeMillis() < end) {
+			if (!display.readAndDispatch()) display.sleep();
+		}
+	} finally {
+		for (Image img : images) img.dispose();
+	}
 }
 
 }

@@ -1527,7 +1527,32 @@ public void setImage(int index, Image image) {
 					 * supposed to be rendered in. See bug 513761.
 					 */
 					boolean check = modelIndex == Tree.FIRST_COLUMN && (parent.style & SWT.CHECK) != 0;
-					parent.createRenderers(column, modelIndex, check, parent.style);
+					if (settingData) {
+						/*
+						 * Fix for issue 678: calling createRenderers() from within a
+						 * SWT.SetData listener is unsafe because GTK is currently
+						 * iterating the column's cell renderers inside
+						 * gtk_tree_view_column_cell_set_cell_data(). createRenderers()
+						 * calls gtk_tree_view_column_clear() which frees the renderer
+						 * list while GTK still holds a pointer into it, causing a
+						 * use-after-free / SIGSEGV on GTK3. Defer the call until GTK
+						 * has finished iterating the renderers.
+						 * The renderer size has already been updated above via
+						 * gtk_cell_renderer_set_fixed_size, so intermediate draws are
+						 * not affected.
+						 */
+						final long deferredColumn = column;
+						final int deferredModelIndex = modelIndex;
+						final boolean deferredCheck = check;
+						final int deferredStyle = parent.style;
+						parent.getDisplay().asyncExec(() -> {
+							if (!parent.isDisposed()) {
+								parent.createRenderers(deferredColumn, deferredModelIndex, deferredCheck, deferredStyle);
+							}
+						});
+					} else {
+						parent.createRenderers(column, modelIndex, check, parent.style);
+					}
 				}
 			}
 		}
