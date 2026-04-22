@@ -1516,43 +1516,31 @@ public void setImage(int index, Image image) {
 				 * Feature in GTK: a Tree with the style SWT.VIRTUAL has
 				 * fixed-height-mode enabled. This will limit the size of
 				 * any cells, including renderers. In order to prevent
-				 * images from disappearing/being cropped, we re-create
-				 * the renderers when the first image is set. Fix for
+				 * images from disappearing/being cropped, GTK's cached
+				 * row height must be invalidated so it re-measures with
+				 * the new pixbuf renderer size (set above). Fix for
 				 * bug 480261.
+				 *
+				 * Calling createRenderers() (which invokes
+				 * gtk_tree_view_column_clear()) is unsafe when this
+				 * setImage() call originates from a SWT.SetData listener,
+				 * because GTK is currently iterating the column's cell
+				 * renderer list inside gtk_tree_view_column_cell_set_cell_data().
+				 * gtk_tree_view_column_clear() frees that list while GTK
+				 * still holds a pointer into it, causing a use-after-free
+				 * SIGSEGV on GTK3 (issue 678).
+				 *
+				 * Instead, toggle the fixed-height-mode GObject property
+				 * off and back on. This resets GTK's cached row height
+				 * (fixed_height = -1) and schedules an async widget resize,
+				 * so GTK will re-measure on the next layout pass and pick
+				 * up the updated renderer size. Unlike gtk_tree_view_column_clear(),
+				 * this does not modify the renderer list and is therefore
+				 * safe to call from within a cell_data_func callback.
 				 */
 				if ((parent.style & SWT.VIRTUAL) != 0) {
-					/*
-					 * Only re-create SWT.CHECK renderers if this is the first column.
-					 * Otherwise check-boxes will be rendered in columns they are not
-					 * supposed to be rendered in. See bug 513761.
-					 */
-					boolean check = modelIndex == Tree.FIRST_COLUMN && (parent.style & SWT.CHECK) != 0;
-					if (settingData) {
-						/*
-						 * Fix for issue 678: calling createRenderers() from within a
-						 * SWT.SetData listener is unsafe because GTK is currently
-						 * iterating the column's cell renderers inside
-						 * gtk_tree_view_column_cell_set_cell_data(). createRenderers()
-						 * calls gtk_tree_view_column_clear() which frees the renderer
-						 * list while GTK still holds a pointer into it, causing a
-						 * use-after-free / SIGSEGV on GTK3. Defer the call until GTK
-						 * has finished iterating the renderers.
-						 * The renderer size has already been updated above via
-						 * gtk_cell_renderer_set_fixed_size, so intermediate draws are
-						 * not affected.
-						 */
-						final long deferredColumn = column;
-						final int deferredModelIndex = modelIndex;
-						final boolean deferredCheck = check;
-						final int deferredStyle = parent.style;
-						parent.getDisplay().asyncExec(() -> {
-							if (!parent.isDisposed()) {
-								parent.createRenderers(deferredColumn, deferredModelIndex, deferredCheck, deferredStyle);
-							}
-						});
-					} else {
-						parent.createRenderers(column, modelIndex, check, parent.style);
-					}
+					OS.g_object_set(parent.handle, OS.fixed_height_mode, false, 0);
+					OS.g_object_set(parent.handle, OS.fixed_height_mode, true, 0);
 				}
 			}
 		}
