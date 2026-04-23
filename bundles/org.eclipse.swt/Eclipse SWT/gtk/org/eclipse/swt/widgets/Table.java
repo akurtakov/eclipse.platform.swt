@@ -90,7 +90,7 @@ public class Table extends Composite {
 	int drawState, drawFlags;
 	GdkRGBA background, foreground, drawForegroundRGBA;
 	Color headerBackground, headerForeground;
-	boolean ownerDraw, ignoreSize, pixbufSizeSet, hasChildren;
+	boolean ownerDraw, ignoreSize, pixbufSizeSet, hasChildren, recreateRenderersScheduled;
 	int maxWidth = 0;
 	int topIndex;
 	double cachedAdjustment, currentAdjustment;

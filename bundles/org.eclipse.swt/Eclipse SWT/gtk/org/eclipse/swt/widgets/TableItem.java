@@ -1198,6 +1198,31 @@ public void setImage(int index, Image image) {
 				parent.pixbufHeight = iHeight;
 				parent.pixbufWidth = iWidth;
 				parent.pixbufSizeSet = true;
+				/*
+				 * Feature in GTK: a Table with the style SWT.VIRTUAL has
+				 * fixed-height-mode enabled. This will limit the size of
+				 * any cells, including renderers. In order to prevent
+				 * images from disappearing/being cropped, GTK's cached
+				 * row height must be invalidated so it re-measures with
+				 * the new pixbuf renderer size.
+				 *
+				 * Recreating the renderers (via recreateRenderers()) forces
+				 * GTK to re-measure all row heights. However, this must not
+				 * be called while we are inside GTK's cell_data_func callback
+				 * (i.e. when settingData is true), as that would destroy the
+				 * renderer currently being iterated and cause a crash. Instead,
+				 * defer the call via asyncExec so it runs after GTK has
+				 * finished the current cell-data iteration.
+				 */
+				if ((parent.style & SWT.VIRTUAL) != 0 && !parent.recreateRenderersScheduled) {
+					parent.recreateRenderersScheduled = true;
+					display.asyncExec(() -> {
+						parent.recreateRenderersScheduled = false;
+						if (!parent.isDisposed()) {
+							parent.recreateRenderers();
+						}
+					});
+				}
 			}
 		}
 	} else {

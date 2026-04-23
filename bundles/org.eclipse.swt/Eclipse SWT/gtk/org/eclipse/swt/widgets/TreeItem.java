@@ -1518,18 +1518,24 @@ public void setImage(int index, Image image) {
 				 * any cells, including renderers. In order to prevent
 				 * images from disappearing/being cropped, GTK's cached
 				 * row height must be invalidated so it re-measures with
-				 * the new pixbuf renderer size (set above). Fix for
-				 * bug 480261.
+				 * the new pixbuf renderer size. Fix for bug 480261.
 				 *
-				 * Toggle the fixed-height-mode GObject property
-				 * off and back on. This resets GTK's cached row height
-				 * (fixed_height = -1) and schedules an async widget resize,
-				 * so GTK will re-measure on the next layout pass and pick
-				 * up the updated renderer size.
+				 * Recreating the renderers (via recreateRenderers()) forces
+				 * GTK to re-measure all row heights. However, this must not
+				 * be called while we are inside GTK's cell_data_func callback
+				 * (i.e. when settingData is true), as that would destroy the
+				 * renderer currently being iterated and cause a crash. Instead,
+				 * defer the call via asyncExec so it runs after GTK has
+				 * finished the current cell-data iteration.
 				 */
-				if ((parent.style & SWT.VIRTUAL) != 0) {
-					OS.g_object_set(parent.handle, OS.fixed_height_mode, false, 0);
-					OS.g_object_set(parent.handle, OS.fixed_height_mode, true, 0);
+				if ((parent.style & SWT.VIRTUAL) != 0 && !parent.recreateRenderersScheduled) {
+					parent.recreateRenderersScheduled = true;
+					display.asyncExec(() -> {
+						parent.recreateRenderersScheduled = false;
+						if (!parent.isDisposed()) {
+							parent.recreateRenderers();
+						}
+					});
 				}
 			}
 		}

@@ -102,7 +102,7 @@ public class Tree extends Composite {
 	GdkRGBA background, foreground, drawForegroundRGBA;
 	/** The owner of the widget is responsible for drawing */
 	boolean isOwnerDrawn;
-	boolean ignoreSize, pixbufSizeSet, hasChildren;
+	boolean ignoreSize, pixbufSizeSet, hasChildren, recreateRenderersScheduled;
 	int pixbufHeight, pixbufWidth, headerHeight;
 	boolean headerVisible;
 	TreeItem topItem;
