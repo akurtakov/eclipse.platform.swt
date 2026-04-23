@@ -2529,6 +2529,26 @@ void propagateDraw (long container, long cairo) {
 	}
 }
 
+/**
+ * Schedules a fixed-height-mode toggle (false then true) via asyncExec.
+ * <p>
+ * This is safe to call from inside GTK's cell_data_func (e.g. from a
+ * SWT.SetData listener): deferring the toggle avoids calling
+ * gtk_widget_queue_resize() mid-rendering-pass, which would corrupt GTK's
+ * layout state and cause initialize_fixed_height_mode() to measure height = 0.
+ * The toggle resets GTK's cached fixed_height = -1 and triggers a re-measure
+ * using the updated pixbuf renderer size. The first paint may miss images
+ * (stale fixed_height still in effect), but all subsequent paints are correct.
+ */
+void scheduleFixedHeightModeToggle () {
+	display.asyncExec (() -> {
+		if (!isDisposed ()) {
+			OS.g_object_set (handle, OS.fixed_height_mode, false, 0);
+			OS.g_object_set (handle, OS.fixed_height_mode, true, 0);
+		}
+	});
+}
+
 void recreateRenderers () {
 	if (checkRenderer != 0) {
 		display.removeWidget (checkRenderer);

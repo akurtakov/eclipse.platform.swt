@@ -1227,13 +1227,7 @@ public void setImage(int index, Image image) {
 				 */
 				if ((parent.style & SWT.VIRTUAL) != 0) {
 					if (settingData) {
-						final Table table = parent;
-						display.asyncExec(() -> {
-							if (!table.isDisposed()) {
-								OS.g_object_set(table.handle, OS.fixed_height_mode, false, 0);
-								OS.g_object_set(table.handle, OS.fixed_height_mode, true, 0);
-							}
-						});
+						parent.scheduleFixedHeightModeToggle ();
 					} else {
 						OS.g_object_set(parent.handle, OS.fixed_height_mode, false, 0);
 						OS.g_object_set(parent.handle, OS.fixed_height_mode, true, 0);
