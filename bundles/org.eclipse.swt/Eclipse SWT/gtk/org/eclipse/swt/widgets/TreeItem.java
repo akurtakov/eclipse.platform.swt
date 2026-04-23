@@ -1520,35 +1520,19 @@ public void setImage(int index, Image image) {
 				 * row height must be invalidated so it re-measures with
 				 * the new pixbuf renderer size (set above). Fix for
 				 * bug 480261.
+				 *
+				 * Toggle the fixed-height-mode property off and back on.
+				 * This resets GTK's cached row height (fixed_height = -1)
+				 * and schedules gtk_widget_queue_resize(), so GTK will
+				 * re-measure on the next layout pass. This is safe to call
+				 * even from within a SWT.SetData listener (i.e. inside
+				 * GTK's cell_data_func), unlike recreateRenderers() which
+				 * would free the renderer list GTK is currently iterating
+				 * (GitHub issue eclipse-platform/eclipse.platform.swt#678).
 				 */
 				if ((parent.style & SWT.VIRTUAL) != 0) {
-					if (!settingData) {
-						/*
-						 * setImage() was called while settingData is false, indicating
-						 * we are not inside GTK's cell_data_func. It is safe to recreate
-						 * the column renderers, which forces GTK to drop its cached fixed
-						 * row height and re-measure immediately with the correct pixbuf
-						 * renderer size.
-						 */
-						parent.recreateRenderers();
-					} else {
-						/*
-						 * setImage() was called from a SWT.SetData listener, which
-						 * means GTK is currently iterating the column's renderer list
-						 * inside gtk_tree_view_column_cell_set_cell_data(). Calling
-						 * recreateRenderers() / gtk_tree_view_column_clear() here would
-						 * free that list while GTK still holds a pointer into it,
-						 * causing a use-after-free SIGSEGV on GTK3
-						 * (GitHub issue eclipse-platform/eclipse.platform.swt#678).
-						 *
-						 * Toggle the fixed-height-mode property off and back on instead.
-						 * This resets GTK's cached row height (fixed_height = -1) and
-						 * schedules gtk_widget_queue_resize(), so GTK will re-measure
-						 * on the next layout pass using the updated renderer size.
-						 */
-						OS.g_object_set(parent.handle, OS.fixed_height_mode, false, 0);
-						OS.g_object_set(parent.handle, OS.fixed_height_mode, true, 0);
-					}
+					OS.g_object_set(parent.handle, OS.fixed_height_mode, false, 0);
+					OS.g_object_set(parent.handle, OS.fixed_height_mode, true, 0);
 				}
 			}
 		}
