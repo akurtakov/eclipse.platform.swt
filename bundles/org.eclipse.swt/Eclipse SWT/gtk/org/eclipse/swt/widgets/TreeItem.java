@@ -1521,18 +1521,34 @@ public void setImage(int index, Image image) {
 				 * the new pixbuf renderer size (set above). Fix for
 				 * bug 480261.
 				 *
-				 * Toggle the fixed-height-mode property off and back on.
-				 * This resets GTK's cached row height (fixed_height = -1)
-				 * and schedules gtk_widget_queue_resize(), so GTK will
-				 * re-measure on the next layout pass. This is safe to call
-				 * even from within a SWT.SetData listener (i.e. inside
-				 * GTK's cell_data_func), unlike recreateRenderers() which
-				 * would free the renderer list GTK is currently iterating
-				 * (GitHub issue eclipse-platform/eclipse.platform.swt#678).
+				 * Setting fixed-height-mode to false resets GTK's cached row
+				 * height (fixed_height = -1). The mode must then be re-enabled
+				 * so GTK calls initialize_fixed_height_mode(), which re-measures
+				 * using the updated renderer size.
+				 *
+				 * When called from a SWT.SetData listener (settingData == true)
+				 * we are inside GTK's cell_data_func. Re-enabling fixed-height-mode
+				 * synchronously there causes GTK's initialize_fixed_height_mode()
+				 * to measure rows while validation is still in progress, which
+				 * locks fixed_height = 0 and makes images permanently invisible.
+				 * Instead, defer the re-enable via asyncExec so it runs after
+				 * cell_data_func returns (GitHub issue eclipse-platform/eclipse.platform.swt#678).
+				 *
+				 * When not inside cell_data_func (settingData == false) the full
+				 * toggle can be done synchronously without issue.
 				 */
 				if ((parent.style & SWT.VIRTUAL) != 0) {
 					OS.g_object_set(parent.handle, OS.fixed_height_mode, false, 0);
-					OS.g_object_set(parent.handle, OS.fixed_height_mode, true, 0);
+					if (settingData) {
+						final Tree tree = parent;
+						display.asyncExec(() -> {
+							if (!tree.isDisposed()) {
+								OS.g_object_set(tree.handle, OS.fixed_height_mode, true, 0);
+							}
+						});
+					} else {
+						OS.g_object_set(parent.handle, OS.fixed_height_mode, true, 0);
+					}
 				}
 			}
 		}
