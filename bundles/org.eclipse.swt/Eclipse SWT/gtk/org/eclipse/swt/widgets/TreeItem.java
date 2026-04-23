@@ -1521,32 +1521,36 @@ public void setImage(int index, Image image) {
 				 * the new pixbuf renderer size (set above). Fix for
 				 * bug 480261.
 				 *
-				 * Setting fixed-height-mode to false resets GTK's cached row
-				 * height (fixed_height = -1). The mode must then be re-enabled
-				 * so GTK calls initialize_fixed_height_mode(), which re-measures
-				 * using the updated renderer size.
+				 * Toggling fixed-height-mode false→true resets GTK's cached
+				 * row height (fixed_height = -1) and then re-measures via
+				 * initialize_fixed_height_mode(), so GTK uses the updated
+				 * pixbuf renderer size on the next layout pass.
 				 *
 				 * When called from a SWT.SetData listener (settingData == true)
-				 * we are inside GTK's cell_data_func. Re-enabling fixed-height-mode
-				 * synchronously there causes GTK's initialize_fixed_height_mode()
-				 * to measure rows while validation is still in progress, which
-				 * locks fixed_height = 0 and makes images permanently invisible.
-				 * Instead, defer the re-enable via asyncExec so it runs after
+				 * we are inside GTK's cell_data_func (part of the rendering
+				 * pipeline). Calling g_object_set() from inside cell_data_func
+				 * triggers gtk_widget_queue_resize() mid-rendering-pass, which
+				 * corrupts GTK's layout state and causes initialize_fixed_height_mode()
+				 * to measure height = 0, making images permanently invisible.
+				 * Defer the entire toggle via asyncExec so it runs after
 				 * cell_data_func returns (GitHub issue eclipse-platform/eclipse.platform.swt#678).
+				 * The first paint will miss images (stale fixed_height still
+				 * in effect), but all subsequent paints will be correct.
 				 *
-				 * When not inside cell_data_func (settingData == false) the full
-				 * toggle can be done synchronously without issue.
+				 * When not inside cell_data_func (settingData == false) the
+				 * full synchronous toggle is safe.
 				 */
 				if ((parent.style & SWT.VIRTUAL) != 0) {
-					OS.g_object_set(parent.handle, OS.fixed_height_mode, false, 0);
 					if (settingData) {
 						final Tree tree = parent;
 						display.asyncExec(() -> {
 							if (!tree.isDisposed()) {
+								OS.g_object_set(tree.handle, OS.fixed_height_mode, false, 0);
 								OS.g_object_set(tree.handle, OS.fixed_height_mode, true, 0);
 							}
 						});
 					} else {
+						OS.g_object_set(parent.handle, OS.fixed_height_mode, false, 0);
 						OS.g_object_set(parent.handle, OS.fixed_height_mode, true, 0);
 					}
 				}
