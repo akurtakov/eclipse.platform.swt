@@ -536,22 +536,36 @@ void deregister () {
 @Override
 void setBackgroundGdkRGBA(long context, long handle, GdkRGBA rgba) {
 	/*
-	 * On GTK4, when a CANVAS Composite has an explicit CSS background-color
-	 * set, GTK4 automatically renders it for the widget's entire bounds via
-	 * gtk_widget_snapshot_child() – BEFORE the SWT snapshot vfunc is called.
-	 * For widgets that do their own painting (hooksPaint()), this leaks the
-	 * solid color into areas the SWT paint event does not explicitly cover
-	 * (e.g. the body area of a CTabFolder when only the tab header is painted).
+	 * On GTK4, when a CANVAS Composite has an explicit CSS background-color set,
+	 * GTK4 renders it for the widget's full bounds BEFORE the SWT snapshot vfunc
+	 * runs (via gtk_widget_snapshot / gtk_widget_snapshot_child). For widgets that
+	 * do their own painting (hooksPaint()), this leaks the solid color into areas
+	 * not covered by the SWT paint event (e.g. the body area of a CTabFolder when
+	 * only the tab header is painted by the gradient renderer).
 	 *
-	 * Fix: store the actual RGBA in canvasBackground and apply a transparent
-	 * CSS rule instead. GTK4 will then render nothing automatically, and the
-	 * SWT paint event controls all visible drawing.  getBgGdkRGBA() is
-	 * overridden to return canvasBackground so that getBackground() and any
-	 * Cairo-based drawing inside the paint event still sees the real color.
+	 * This happens on both X11 and Wayland, but is especially visible on Wayland
+	 * because the GTK4 GL/NGL renderer is always used there and CSS color nodes are
+	 * emitted as opaque GL draw calls regardless of alpha.
+	 *
+	 * Fix: store the actual RGBA in canvasBackground and write a CSS rule that uses
+	 * the CSS 'transparent' keyword so GTK4 emits no background node at all. This
+	 * is more reliable than rgba(0,0,0,0) across GTK4 rendering backends.
+	 * getBgGdkRGBA() is overridden to return canvasBackground so that
+	 * getBackground() and Cairo-based drawing inside the paint event still see the
+	 * real color.
 	 */
 	if (GTK.GTK4 && (state & CANVAS) != 0 && hooksPaint() && rgba != null) {
 		canvasBackground = rgba;
-		super.setBackgroundGdkRGBA(context, handle, new GdkRGBA()); // transparent
+		String cssName = display.gtk_widget_class_get_css_name(handle);
+		GdkRGBA selectedBackground = display.getSystemColor(SWT.COLOR_LIST_SELECTION).handle;
+		// Use the CSS 'transparent' keyword rather than rgba(0,0,0,0). The keyword
+		// is handled correctly by all GTK4 rendering backends (Cairo, GL, NGL,
+		// Vulkan) and prevents a CSS background node from being emitted.
+		String css = cssName + " {background-color: transparent;}\n"
+				+ cssName + ":selected {background-color: " + display.gtk_rgba_to_css_string(selectedBackground) + ";}";
+		cssBackground = css;
+		String finalCss = display.gtk_css_create_css_color_string(cssBackground, cssForeground, SWT.BACKGROUND);
+		gtk_css_provider_load_from_css(context, finalCss);
 	} else {
 		canvasBackground = null;
 		super.setBackgroundGdkRGBA(context, handle, rgba);
@@ -577,14 +591,24 @@ void snapshotBackground (long handle, long snapshot) {
 	 * paints the background image or color directly via Cairo.
 	 *
 	 * Skip when an explicit background color has been set (state & BACKGROUND):
-	 * GTK4 renders the CSS provider background automatically before calling
-	 * the snapshot vfunc.
+	 * the CSS provider already carries the background rule (or 'transparent'
+	 * when canvasBackground is active), so there is nothing to do here.
+	 *
+	 * Also skip when canvasBackground is set: the CSS has been forced to
+	 * 'transparent' by setBackgroundGdkRGBA() and the SWT paint event
+	 * (snapshotToDraw) is responsible for all visible content.  Drawing here
+	 * would use getBackgroundGdkRGBA() which returns canvasBackground and
+	 * would flood the entire widget with the solid color before the SWT paint
+	 * event gets a chance to render the gradient.
 	 */
 	Control control = findBackgroundControl ();
 	boolean draw = control != null && control.backgroundImage != null;
 	if (!draw && (state & CANVAS) != 0) {
 		draw = (state & BACKGROUND) == 0;
 	}
+	// When canvasBackground is active the CSS is 'transparent'; never draw here
+	// so the SWT paint event owns all background rendering.
+	if (canvasBackground != null) draw = false;
 	if (!draw) return;
 
 	if (control == null) control = this;
