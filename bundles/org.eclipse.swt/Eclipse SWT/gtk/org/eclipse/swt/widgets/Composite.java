@@ -114,8 +114,11 @@ public class Composite extends Scrollable {
 	 * not covered by the SWT paint event, while still allowing getBackground()
 	 * to return the correct color for use inside the paint event.
 	 *
-	 * When non-null, a transparent CSS rule is applied to the GTK widget instead
-	 * of the actual color, so that GTK4 does not paint it automatically.
+	 * When non-null, the CSS background is overridden to the system-default widget
+	 * background colour (COLOR_WIDGET_BACKGROUND_RGBA, via passing null to
+	 * super.setBackgroundGdkRGBA) rather than the actual set colour.  GTK4 then
+	 * renders the system default for the full widget bounds first, and
+	 * snapshotToDraw paints the gradient on top in the appropriate sub-area.
 	 */
 	GdkRGBA canvasBackground;
 
@@ -538,34 +541,30 @@ void setBackgroundGdkRGBA(long context, long handle, GdkRGBA rgba) {
 	/*
 	 * On GTK4, when a CANVAS Composite has an explicit CSS background-color set,
 	 * GTK4 renders it for the widget's full bounds BEFORE the SWT snapshot vfunc
-	 * runs (via gtk_widget_snapshot / gtk_widget_snapshot_child). For widgets that
-	 * do their own painting (hooksPaint()), this leaks the solid color into areas
-	 * not covered by the SWT paint event (e.g. the body area of a CTabFolder when
-	 * only the tab header is painted by the gradient renderer).
+	 * runs. For widgets that do their own painting (hooksPaint()), this leaks the
+	 * solid colour into areas the SWT paint event does not explicitly cover
+	 * (e.g. the body area of a CTabFolder when only the tab header is painted by
+	 * the gradient renderer).
 	 *
-	 * This happens on both X11 and Wayland, but is especially visible on Wayland
-	 * because the GTK4 GL/NGL renderer is always used there and CSS color nodes are
-	 * emitted as opaque GL draw calls regardless of alpha.
+	 * An earlier attempt set CSS to 'transparent'.  That worked on X11 (where the
+	 * parent X11 window fills in the gap) but failed on Wayland: the GL/NGL
+	 * renderer starts from a cleared (transparent) framebuffer, so transparent
+	 * pixels let the Wayland compositor background (wallpaper, other windows) bleed
+	 * through — producing "half the tab is colored / close button wrongly colored".
 	 *
-	 * Fix: store the actual RGBA in canvasBackground and write a CSS rule that uses
-	 * the CSS 'transparent' keyword so GTK4 emits no background node at all. This
-	 * is more reliable than rgba(0,0,0,0) across GTK4 rendering backends.
+	 * Fix: store the actual RGBA in canvasBackground and set CSS to null (which
+	 * resolves to COLOR_WIDGET_BACKGROUND_RGBA — the system-default widget
+	 * background). GTK4 then renders that solid, correct colour for the full widget
+	 * bounds first; snapshotToDraw draws the SWT paint content (e.g. gradient) on
+	 * top of that, leaving the body area with the system default and the header
+	 * with the gradient.
 	 * getBgGdkRGBA() is overridden to return canvasBackground so that
-	 * getBackground() and Cairo-based drawing inside the paint event still see the
-	 * real color.
+	 * getBackground() and any Cairo-based drawing inside the paint event still
+	 * see the real colour.
 	 */
 	if (GTK.GTK4 && (state & CANVAS) != 0 && hooksPaint() && rgba != null) {
 		canvasBackground = rgba;
-		String cssName = display.gtk_widget_class_get_css_name(handle);
-		GdkRGBA selectedBackground = display.getSystemColor(SWT.COLOR_LIST_SELECTION).handle;
-		// Use the CSS 'transparent' keyword rather than rgba(0,0,0,0). The keyword
-		// is handled correctly by all GTK4 rendering backends (Cairo, GL, NGL,
-		// Vulkan) and prevents a CSS background node from being emitted.
-		String css = cssName + " {background-color: transparent;}\n"
-				+ cssName + ":selected {background-color: " + display.gtk_rgba_to_css_string(selectedBackground) + ";}";
-		cssBackground = css;
-		String finalCss = display.gtk_css_create_css_color_string(cssBackground, cssForeground, SWT.BACKGROUND);
-		gtk_css_provider_load_from_css(context, finalCss);
+		super.setBackgroundGdkRGBA(context, handle, null);
 	} else {
 		canvasBackground = null;
 		super.setBackgroundGdkRGBA(context, handle, rgba);
@@ -591,24 +590,15 @@ void snapshotBackground (long handle, long snapshot) {
 	 * paints the background image or color directly via Cairo.
 	 *
 	 * Skip when an explicit background color has been set (state & BACKGROUND):
-	 * the CSS provider already carries the background rule (or 'transparent'
-	 * when canvasBackground is active), so there is nothing to do here.
-	 *
-	 * Also skip when canvasBackground is set: the CSS has been forced to
-	 * 'transparent' by setBackgroundGdkRGBA() and the SWT paint event
-	 * (snapshotToDraw) is responsible for all visible content.  Drawing here
-	 * would use getBackgroundGdkRGBA() which returns canvasBackground and
-	 * would flood the entire widget with the solid color before the SWT paint
-	 * event gets a chance to render the gradient.
+	 * the CSS provider already carries the background rule (the system-default
+	 * colour when canvasBackground is active, otherwise the actual set colour),
+	 * so there is nothing for snapshotBackground to add here.
 	 */
 	Control control = findBackgroundControl ();
 	boolean draw = control != null && control.backgroundImage != null;
 	if (!draw && (state & CANVAS) != 0) {
 		draw = (state & BACKGROUND) == 0;
 	}
-	// When canvasBackground is active the CSS is 'transparent'; never draw here
-	// so the SWT paint event owns all background rendering.
-	if (canvasBackground != null) draw = false;
 	if (!draw) return;
 
 	if (control == null) control = this;
