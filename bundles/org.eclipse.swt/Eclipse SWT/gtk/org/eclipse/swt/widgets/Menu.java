@@ -1482,13 +1482,31 @@ void adjustParentWindowWayland (long eventPtr) {
  * a change in separator count (even with the same total item count, e.g.
  * a regular item replaced by a separator) must also trigger a resize.
  *
+ * On GTK4, the GtkPopoverMenu manages its own surface size via
+ * {@code gtk_popover_present}. If items have been added or removed since
+ * the last popup, calling {@code gtk_widget_queue_resize} invalidates the
+ * widget's size cache so that {@code gtk_popover_present} (called
+ * internally during {@code gtk_popover_popup}) measures the popover fresh
+ * rather than reusing a stale cached height.
+ *
  * @param itemCount the current number of items in the menu, just
  * before it's about to be shown/popped-up
  */
 void verifyMenuPosition (int itemCount) {
-	if (OS.isX11()) {
-		int separatorCount = getSeparatorCount ();
-		if ((itemCount != poppedUpCount || separatorCount != poppedUpSeparatorCount) && poppedUpCount != 0) {
+	int separatorCount = getSeparatorCount ();
+	boolean contentChanged = (itemCount != poppedUpCount || separatorCount != poppedUpSeparatorCount)
+			&& poppedUpCount != 0;
+	if (GTK.GTK4) {
+		/*
+		 * On GTK4, invalidate the GtkPopoverMenu's size cache so that the
+		 * internal gtk_popover_present → gtk_widget_measure call during
+		 * gtk_popover_popup re-measures the popover with the current items.
+		 */
+		if (contentChanged) {
+			GTK.gtk_widget_queue_resize(handle);
+		}
+	} else if (OS.isX11()) {
+		if (contentChanged) {
 			int [] naturalHeight = new int [1];
 			/*
 			 * We need to "show" the menu before fetching the preferred height.
