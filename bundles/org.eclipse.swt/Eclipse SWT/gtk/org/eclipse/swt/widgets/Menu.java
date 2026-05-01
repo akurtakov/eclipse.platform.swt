@@ -405,7 +405,7 @@ void _setVisible (boolean visible) {
 						GTK3.memmove (eventPtr, event, GdkEventButton.sizeof);
 					}
 					adjustParentWindowWayland(eventPtr);
-					verifyMenuPosition(getItemCount());
+					verifyMenuPosition();
 					GTK3.gtk_menu_popup_at_pointer(handle, eventPtr);
 					GDK.gdk_event_free(eventPtr);
 				}
@@ -1469,18 +1469,17 @@ void adjustParentWindowWayland (long eventPtr) {
  * internally in GTK, specifically with the height of the
  * toplevel GdkWindow. <p>
  *
- * The fix is to cache the number of items popped up previously,
- * and if the number of items in the current menu (to be popped up)
- * is different, then:<ul>
- *     <li>get the preferred height of the menu</li>
- *     <li>set the toplevel GdkWindow to that height</li></ul>
- *
- * @param itemCount the current number of items in the menu, just
- * before it's about to be shown/popped-up
+ * The fix is to always verify the preferred height of the menu
+ * against the current GdkWindow height after the first popup,
+ * and resize the GdkWindow if necessary. Comparing only the
+ * number of items is insufficient because separators have a
+ * different height than regular menu items — replacing a regular
+ * item with a separator (same count, different height) would
+ * otherwise go undetected.
  */
-void verifyMenuPosition (int itemCount) {
+void verifyMenuPosition () {
 	if (OS.isX11()) {
-		if (itemCount != poppedUpCount && poppedUpCount != 0) {
+		if (poppedUpCount != 0) {
 			int [] naturalHeight = new int [1];
 			/*
 			 * We need to "show" the menu before fetching the preferred height.
