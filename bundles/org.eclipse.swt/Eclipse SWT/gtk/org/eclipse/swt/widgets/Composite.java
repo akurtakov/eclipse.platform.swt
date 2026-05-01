@@ -107,6 +107,17 @@ public class Composite extends Scrollable {
 	 * See bug 535978.
 	 */
 	HashMap<Widget, Boolean> childrenLowered = new HashMap<>();
+	/**
+	 * On GTK4, stores the background color for CANVAS composites that have a
+	 * paint listener. Used to prevent GTK4's automatic CSS background rendering
+	 * (via gtk_widget_snapshot_child) from leaking the solid color into areas
+	 * not covered by the SWT paint event, while still allowing getBackground()
+	 * to return the correct color for use inside the paint event.
+	 *
+	 * When non-null, a transparent CSS rule is applied to the GTK widget instead
+	 * of the actual color, so that GTK4 does not paint it automatically.
+	 */
+	GdkRGBA canvasBackground;
 
 Composite () {
 	/* Do nothing */
@@ -520,6 +531,39 @@ boolean mustBeVisibleOnInitBounds() {
 void deregister () {
 	super.deregister ();
 	if (socketHandle != 0) display.removeWidget (socketHandle);
+}
+
+@Override
+void setBackgroundGdkRGBA(long context, long handle, GdkRGBA rgba) {
+	/*
+	 * On GTK4, when a CANVAS Composite has an explicit CSS background-color
+	 * set, GTK4 automatically renders it for the widget's entire bounds via
+	 * gtk_widget_snapshot_child() – BEFORE the SWT snapshot vfunc is called.
+	 * For widgets that do their own painting (hooksPaint()), this leaks the
+	 * solid color into areas the SWT paint event does not explicitly cover
+	 * (e.g. the body area of a CTabFolder when only the tab header is painted).
+	 *
+	 * Fix: store the actual RGBA in canvasBackground and apply a transparent
+	 * CSS rule instead. GTK4 will then render nothing automatically, and the
+	 * SWT paint event controls all visible drawing.  getBgGdkRGBA() is
+	 * overridden to return canvasBackground so that getBackground() and any
+	 * Cairo-based drawing inside the paint event still sees the real color.
+	 */
+	if (GTK.GTK4 && (state & CANVAS) != 0 && hooksPaint() && rgba != null) {
+		canvasBackground = rgba;
+		super.setBackgroundGdkRGBA(context, handle, new GdkRGBA()); // transparent
+	} else {
+		canvasBackground = null;
+		super.setBackgroundGdkRGBA(context, handle, rgba);
+	}
+}
+
+@Override
+GdkRGBA getBgGdkRGBA() {
+	if (canvasBackground != null) {
+		return canvasBackground;
+	}
+	return super.getBgGdkRGBA();
 }
 
 @Override
