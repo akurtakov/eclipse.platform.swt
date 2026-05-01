@@ -340,6 +340,7 @@ void _setVisible (boolean visible) {
 					popoverPosition.width = popoverPosition.height = 1;
 					GTK.gtk_popover_set_pointing_to(handle, popoverPosition);
 
+					verifyMenuPosition();
 					GTK.gtk_popover_popup(handle);
 				} else {
 					// Create the GdkEvent manually as we need to control
@@ -377,6 +378,7 @@ void _setVisible (boolean visible) {
 						rect.x = this.x + 1;
 						rect.y = this.y + 1;
 					}
+					verifyMenuPosition();
 					// Popup the menu and pin it at the top left corner of the GdkRectangle relative to the GdkWindow
 					GTK3.gtk_menu_popup_at_rect(handle, event.window, rect, GDK.GDK_GRAVITY_NORTH_WEST,
 							GDK.GDK_GRAVITY_NORTH_WEST, eventPtr);
@@ -384,6 +386,7 @@ void _setVisible (boolean visible) {
 				}
 			} else {
 				if (GTK.GTK4) {
+					verifyMenuPosition();
 					GTK.gtk_popover_popup(handle);
 				} else {
 					/*
@@ -1461,25 +1464,39 @@ void adjustParentWindowWayland (long eventPtr) {
 }
 
 /**
- * Feature in GTK3 on X11: context menus in SWT are populated
- * dynamically, sometimes asynchronously outside of SWT
- * (i.e. in Platform UI). This means that items are added and
- * removed just before the menu is shown. This method of
- * changing the menu content can sometimes cause sizing issues
- * internally in GTK, specifically with the height of the
- * toplevel GdkWindow. <p>
+ * Context menus in SWT are populated dynamically, sometimes asynchronously
+ * outside of SWT (i.e. in Platform UI). This means that items are added and
+ * removed just before the menu is shown. This method of changing the menu
+ * content can sometimes cause sizing issues internally in GTK, specifically
+ * with the height of the menu window/surface. <p>
  *
- * The fix is to always verify the preferred height of the menu
- * against the current GdkWindow height after the first popup,
- * and resize the GdkWindow if necessary. Comparing only the
- * number of items is insufficient because separators have a
- * different height than regular menu items — replacing a regular
- * item with a separator (same count, different height) would
- * otherwise go undetected.
+ * The fix is to always force a size recalculation before showing the menu
+ * for the second time and beyond ({@code poppedUpCount != 0}). Resizing is
+ * skipped on the very first popup because GTK always measures the menu
+ * fresh at that point; it is only on subsequent popups that a stale cached
+ * size can be reused. Comparing only the number of items would be
+ * insufficient because separators have a different height than regular menu
+ * items — replacing a regular item with a separator (same count, different
+ * height) would otherwise go undetected.
  */
 void verifyMenuPosition () {
-	if (OS.isX11()) {
-		if (poppedUpCount != 0) {
+	/*
+	 * Only correct the size from the second popup onwards. On the very first
+	 * popup GTK always measures the menu fresh, so no correction is needed.
+	 * poppedUpCount is updated to getItemCount() at the end of each _setVisible(true)
+	 * call, so a non-zero value means the menu has been shown at least once before.
+	 */
+	if (poppedUpCount != 0) {
+		if (GTK.GTK4) {
+			/*
+			 * On GTK4, force the GtkPopoverMenu to re-measure itself before it is
+			 * shown, in case the menu content has changed since the last popup
+			 * (e.g. items added/removed or a separator inserted). GTK4 does not
+			 * expose a direct surface-resize API, so we invalidate the widget's
+			 * current size allocation and let GTK recalculate it naturally.
+			 */
+			GTK.gtk_widget_queue_resize(handle);
+		} else {
 			int [] naturalHeight = new int [1];
 			/*
 			 * We need to "show" the menu before fetching the preferred height.
@@ -1492,16 +1509,10 @@ void verifyMenuPosition () {
 			 */
 			GTK3.gtk_widget_get_preferred_height(handle, null, naturalHeight);
 			if (naturalHeight[0] > 0) {
-				if (GTK.GTK4) {
-					/* TODO: GTK4 gdk_surface_resize/move no longer exist & have been replaced with
-					 * gdk_toplevel_begin_resize & gdk_toplevel_begin_move. These functions might change the
-					 * design of resizing and moving in GTK4 */
-				} else {
-					long topLevelWidget = GTK3.gtk_widget_get_toplevel(handle);
-					long topLevelWindow = GTK3.gtk_widget_get_window(topLevelWidget);
-					int width = GDK.gdk_window_get_width(topLevelWindow);
-					GDK.gdk_window_resize(topLevelWindow, width, naturalHeight[0]);
-				}
+				long topLevelWidget = GTK3.gtk_widget_get_toplevel(handle);
+				long topLevelWindow = GTK3.gtk_widget_get_window(topLevelWidget);
+				int width = GDK.gdk_window_get_width(topLevelWindow);
+				GDK.gdk_window_resize(topLevelWindow, width, naturalHeight[0]);
 			}
 		}
 	}
