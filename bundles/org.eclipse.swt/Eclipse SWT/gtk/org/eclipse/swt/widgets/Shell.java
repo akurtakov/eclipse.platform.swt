@@ -745,22 +745,16 @@ void createHandle (int index) {
 			if (isChildShell && (style & SWT.ON_TOP) != 0) type = GTK.GTK_WINDOW_POPUP;
 			if (GTK.GTK4) {
 				shellHandle = GTK4.gtk_window_new();
-				if (OS.isWayland()) {
-					// Only install a headerbar for shells that will actually be decorated.
-					// Undecorated shells (NO_TRIM, or shells with no SHELL_TRIM bits on Wayland) have
-					// gtk_window_set_decorated(false) called later and must not get a headerbar, as it
-					// can cause rendering artifacts (e.g. a white rectangle at the splash screen position).
-					boolean shellWillBeDecorated = (style & SWT.NO_TRIM) == 0 && (style & SWT.SHELL_TRIM) != 0;
-					if (shellWillBeDecorated) {
-						long headerbar = GTK4.gtk_window_get_titlebar(shellHandle);
-						if (headerbar == 0) {
-						    // Force-install a headerbar if none exists in order to be able to query its size later
-							// If none set by the app gtk_window_get_titlebar returns 0 but Gtk still draws one internally
-						    long hb = GTK4.gtk_header_bar_new();
-						    GTK4.gtk_window_set_titlebar(shellHandle, hb);
-						}
-					}
-				}
+				/*
+				 * Do NOT forcefully install a GtkHeaderBar for decorated shells on Wayland.
+				 * On GNOME Wayland (and other compositors using libdecor), the window titlebar is
+				 * drawn by the compositor as server-side decorations (SSD) outside the GTK widget
+				 * tree. Forcefully installing a GtkHeaderBar switches the window to client-side
+				 * decorations (CSD), which adds a titlebar widget into the GTK layout tree.
+				 * This causes coordinate-offset mismatches in forceResize() and resizeBounds(),
+				 * leading to white rectangles where dialog content should be rendered.
+				 * The compositor handles the decorations without any help from SWT.
+				 */
 				if (type == GTK.GTK_WINDOW_POPUP) {
 					GTK.gtk_window_set_decorated(shellHandle, false);
 				}
