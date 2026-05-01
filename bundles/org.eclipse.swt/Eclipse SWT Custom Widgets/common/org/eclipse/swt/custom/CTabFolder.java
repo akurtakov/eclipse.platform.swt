@@ -2494,7 +2494,7 @@ public void setBackground(Color[] colors, int[] percents, boolean vertical) {
 			gradientPercents[i] = percents[i];
 		}
 		gradientVertical = vertical;
-		setBackground(gradientColors[gradientColors.length-1]);
+		setBackground((Color)null);
 	}
 
 	// Refresh with the new settings
