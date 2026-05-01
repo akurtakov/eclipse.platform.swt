@@ -149,6 +149,12 @@ public static Frame new_Frame (final Composite parent) {
 	if ((parent.getStyle () & SWT.EMBEDDED) == 0) {
 		SWT.error (SWT.ERROR_INVALID_ARGUMENT);
 	}
+	if (GTK.GTK4) {
+		SWT.error (SWT.ERROR_NOT_IMPLEMENTED, null, " [SWT.EMBEDDED / SWT_AWT is not supported for GTK >= 4]");
+	}
+	if (OS.isWayland()) {
+		SWT.error (SWT.ERROR_NOT_IMPLEMENTED, null, " [SWT.EMBEDDED / SWT_AWT is not supported on Wayland]");
+	}
 	long handle = parent.embeddedHandle;
 	/*
 	 * Some JREs have implemented the embedded frame constructor to take an integer
