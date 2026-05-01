@@ -494,6 +494,17 @@ void addToolTip (ToolTip toolTip) {
  */
 void adjustTrim (int widthHint, int heightHint) {
 	if (display.ignoreTrim) return;
+	/*
+	 * On GTK4, window sizing is managed through gtk_window_set_default_size()
+	 * and the headerbar height (see setBounds()). The GTK3 approach used here
+	 * (gdk_window_get_frame_extents) is unavailable on GTK4, and
+	 * gtk_widget_get_allocation(shellHandle) is unreliable at the time this
+	 * method is called on X11 GTK4 (the map signal fires before the window
+	 * manager has processed the window, leaving the allocation at 1x1).
+	 * An incorrect allocation causes a negative heightAdjustment, which
+	 * calls resizeBounds() with a negative height and makes content invisible.
+	 */
+	if (GTK.GTK4) return;
 	GtkAllocation allocation = new GtkAllocation ();
 	GTK.gtk_widget_get_allocation (shellHandle, allocation);
 	int width = allocation.width;
@@ -745,14 +756,13 @@ void createHandle (int index) {
 			if (isChildShell && (style & SWT.ON_TOP) != 0) type = GTK.GTK_WINDOW_POPUP;
 			if (GTK.GTK4) {
 				shellHandle = GTK4.gtk_window_new();
-				if (OS.isWayland()) {
-					long headerbar = GTK4.gtk_window_get_titlebar(shellHandle);
-					if (headerbar == 0) {
-					    // Force-install a headerbar if none exists in order to be able to qurey its size later
-						// If none set by the app gtk_window_get_titlebar returns 0 but Gtk still draws one internally
-					    long hb = GTK4.gtk_header_bar_new();
-					    GTK4.gtk_window_set_titlebar(shellHandle, hb);
-					}
+				long headerbar = GTK4.gtk_window_get_titlebar(shellHandle);
+				if (headerbar == 0) {
+				    // Force-install a headerbar if none exists in order to be able to query its size later.
+					// If none set by the app, gtk_window_get_titlebar returns 0 but Gtk still draws one
+					// internally. This applies to both Wayland and X11 GTK4 (where CSD may be used).
+				    long hb = GTK4.gtk_header_bar_new();
+				    GTK4.gtk_window_set_titlebar(shellHandle, hb);
 				}
 				if (type == GTK.GTK_WINDOW_POPUP) {
 					GTK.gtk_window_set_decorated(shellHandle, false);
