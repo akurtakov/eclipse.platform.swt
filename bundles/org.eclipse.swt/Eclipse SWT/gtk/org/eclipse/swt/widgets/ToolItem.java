@@ -861,6 +861,7 @@ void gtk4_leave_event(long controller, long event) {
 long gtk_map (long widget) {
 	parent.fixZOrder ();
 	if ((style & SWT.SEPARATOR) != 0) {
+		/* GTK4 may only have valid separator/control allocations after map. */
 		resizeControl ();
 	}
 	return 0;
@@ -1092,15 +1093,13 @@ void resizeControl () {
 		* combo box.
 		*/
 		Rectangle itemRect = getBounds ();
-		if (itemRect.width <= 0 || itemRect.height <= 0) return;
-		control.setSize (itemRect.width, itemRect.height);
 		/*
 		 * On GTK4, unshown widgets can have non-positive allocations.
-		 * Calling resizeHandle() with non-positive dimensions would
-		 * set the GtkSeparator's size-request to 0, permanently overriding any size
-		 * previously set via setWidth() and keeping the separator (and its hosted
-		 * control) invisible.
+		 * Passing non-positive dimensions to setSize()/resizeHandle() can trigger
+		 * invalid allocations and may collapse the separator size request.
 		 */
+		if (itemRect.width <= 0 || itemRect.height <= 0) return;
+		control.setSize (itemRect.width, itemRect.height);
 		resizeHandle(itemRect.width, itemRect.height);
 		Rectangle rect = control.getBounds ();
 		rect.x = itemRect.x + (itemRect.width - rect.width) / 2;
