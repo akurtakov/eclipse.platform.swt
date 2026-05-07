@@ -4116,6 +4116,18 @@ long windowProc (long handle, long arg0, long user_data) {
 				}
 				propagateDraw(handle, arg0);
 			}
+			if (!GTK.GTK4) {
+				/*
+				 * Fire gtk_draw() here (after GTK's default rendering) so that
+				 * SWT.Paint listeners run on top of the table content.
+				 * On GTK3 the EXPOSE_EVENT_INVERSE fires before GTK renders, so
+				 * any custom drawing done there is overwritten by GTK's background
+				 * fill. By calling gtk_draw() in EXPOSE_EVENT (after rendering) we
+				 * ensure custom text/graphics remain visible. See issue #3285.
+				 */
+				gtk_draw(handle, arg0);
+				return 0;
+			}
 			break;
 		}
 		case EXPOSE_EVENT_INVERSE: {
@@ -4136,6 +4148,15 @@ long windowProc (long handle, long arg0, long user_data) {
 						}
 					}
 				}
+			}
+			if (!GTK.GTK4) {
+				/*
+				 * On GTK3, do NOT delegate to super.windowProc here. Widget.windowProc
+				 * would call gtk_draw() for containers in EXPOSE_EVENT_INVERSE, which
+				 * fires SWT.Paint BEFORE GTK renders — causing custom drawings to be
+				 * overwritten. We handle gtk_draw() in EXPOSE_EVENT instead (see above).
+				 */
+				return 0;
 			}
 			break;
 		}
