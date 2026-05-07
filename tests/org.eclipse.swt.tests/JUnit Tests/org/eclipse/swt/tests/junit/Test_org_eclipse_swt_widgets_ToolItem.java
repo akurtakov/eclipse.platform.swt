@@ -16,8 +16,12 @@ package org.eclipse.swt.tests.junit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.layout.RowLayout;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 import org.junit.jupiter.api.BeforeEach;
@@ -105,6 +109,31 @@ public void test_setDisabledImage() {
 		toolItem.setImage(null);
 		assertEquals(null, toolItem.getImage());
 		assertEquals(images[1], toolItem.getDisabledImage());
+}
+
+@Test
+public void test_separatorControl_isSizedAfterShellOpen() {
+	ToolBar bar = new ToolBar(shell, SWT.HORIZONTAL);
+	new ToolItem(bar, SWT.PUSH).setText("left");
+
+	Composite launchbar = new Composite(bar, SWT.NONE);
+	launchbar.setLayout(new RowLayout());
+	new Button(launchbar, SWT.PUSH).setText("Launch");
+
+	ToolItem separator = new ToolItem(bar, SWT.SEPARATOR);
+	separator.setControl(launchbar);
+	separator.setWidth(launchbar.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x);
+
+	new ToolItem(bar, SWT.PUSH).setText("right");
+
+	shell.pack();
+	shell.open();
+	while (shell.getDisplay().readAndDispatch()) {
+	}
+
+	assertTrue(separator.getBounds().width > 0);
+	assertTrue(launchbar.getBounds().width > 0);
+	assertTrue(launchbar.getBounds().height > 0);
 }
 
 @Override

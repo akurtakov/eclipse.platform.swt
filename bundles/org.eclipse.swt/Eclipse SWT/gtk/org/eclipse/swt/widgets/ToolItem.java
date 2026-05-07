@@ -860,6 +860,9 @@ void gtk4_leave_event(long controller, long event) {
 @Override
 long gtk_map (long widget) {
 	parent.fixZOrder ();
+	if ((style & SWT.SEPARATOR) != 0) {
+		resizeControl ();
+	}
 	return 0;
 }
 
