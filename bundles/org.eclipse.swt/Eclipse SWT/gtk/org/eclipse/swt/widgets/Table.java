@@ -4180,7 +4180,9 @@ long windowProc (long handle, long arg0, long user_data) {
 				 * overpaint already-rendered items due to coordinate-system differences
 				 * between the main widget window and the bin_window.
 				 */
+				Cairo.cairo_save (arg0);
 				drawInheritedBackground (arg0);
+				Cairo.cairo_restore (arg0);
 				/*
 				 * On GTK3, do NOT delegate to super.windowProc here. Widget.windowProc
 				 * would call gtk_draw() for containers in EXPOSE_EVENT_INVERSE, which
