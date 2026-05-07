@@ -2482,22 +2482,6 @@ long gtk_draw (long widget, long cairo) {
 		return 0;
 	}
 	drawInheritedBackground (cairo);
-	if (!GTK.GTK4 && headerVisible) {
-		int headerHeight = getHeaderHeight();
-		if (headerHeight > 0) {
-			GdkRectangle clip = new GdkRectangle ();
-			GDK.gdk_cairo_get_clip_rectangle (cairo, clip);
-			int y = Math.max (clip.y, headerHeight);
-			int height = clip.height - (y - clip.y);
-			if (height <= 0) return 0;
-			Cairo.cairo_save (cairo);
-			Cairo.cairo_rectangle (cairo, clip.x, y, clip.width, height);
-			Cairo.cairo_clip (cairo);
-			long result = super.gtk_draw (widget, cairo);
-			Cairo.cairo_restore (cairo);
-			return result;
-		}
-	}
 	return super.gtk_draw (widget, cairo);
 }
 
