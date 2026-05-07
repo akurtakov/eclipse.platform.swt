@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
@@ -127,6 +128,33 @@ public void test_separatorControl_isSizedAfterShellOpen() {
 	new ToolItem(bar, SWT.PUSH).setText("right");
 
 	shell.pack();
+	shell.open();
+	while (shell.getDisplay().readAndDispatch()) {
+	}
+
+	assertTrue(separator.getBounds().width > 0);
+	assertTrue(launchbar.getBounds().width > 0);
+	assertTrue(launchbar.getBounds().height > 0);
+}
+
+@Test
+public void test_separatorControl_isSizedAfterShellSetSizeOpen() {
+	shell.setLayout(new FillLayout());
+
+	ToolBar bar = new ToolBar(shell, SWT.HORIZONTAL | SWT.FLAT | SWT.BORDER);
+	new ToolItem(bar, SWT.PUSH).setText("left");
+
+	Composite launchbar = new Composite(bar, SWT.BORDER);
+	launchbar.setLayout(new RowLayout(SWT.HORIZONTAL));
+	new Button(launchbar, SWT.PUSH).setText("Launch");
+
+	ToolItem separator = new ToolItem(bar, SWT.SEPARATOR);
+	separator.setControl(launchbar);
+	separator.setWidth(launchbar.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x);
+
+	new ToolItem(bar, SWT.PUSH).setText("right");
+
+	shell.setSize(600, 80);
 	shell.open();
 	while (shell.getDisplay().readAndDispatch()) {
 	}

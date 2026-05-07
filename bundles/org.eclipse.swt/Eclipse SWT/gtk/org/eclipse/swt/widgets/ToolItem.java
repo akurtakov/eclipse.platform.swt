@@ -1092,18 +1092,16 @@ void resizeControl () {
 		* combo box.
 		*/
 		Rectangle itemRect = getBounds ();
+		if (itemRect.width <= 0 || itemRect.height <= 0) return;
 		control.setSize (itemRect.width, itemRect.height);
 		/*
-		 * On GTK4, unshown widgets have a default allocation of {0,0,0,0} whereas
-		 * GTK3 uses {0,0,1,1}. Calling resizeHandle() with zero dimensions would
+		 * On GTK4, unshown widgets can have non-positive allocations.
+		 * Calling resizeHandle() with non-positive dimensions would
 		 * set the GtkSeparator's size-request to 0, permanently overriding any size
 		 * previously set via setWidth() and keeping the separator (and its hosted
-		 * control) invisible. Only call resizeHandle() when the item actually has
-		 * valid (non-zero) dimensions.
+		 * control) invisible.
 		 */
-		if (itemRect.width > 0 && itemRect.height > 0) {
-			resizeHandle(itemRect.width, itemRect.height);
-		}
+		resizeHandle(itemRect.width, itemRect.height);
 		Rectangle rect = control.getBounds ();
 		rect.x = itemRect.x + (itemRect.width - rect.width) / 2;
 		rect.y = itemRect.y + (itemRect.height - rect.height) / 2;
