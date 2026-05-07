@@ -2273,7 +2273,7 @@ void drawInheritedBackground (long cairo) {
 				gdkResource = GTK3.gtk_tree_view_get_bin_window (handle);
 				gdk_window_get_size (gdkResource, width, height);
 			}
-			int bottom = 0;
+			int bottom = !GTK.GTK4 && headerVisible ? getHeaderHeight() : 0;
 			if (itemCount != 0) {
 				long iter = OS.g_malloc (GTK.GtkTreeIter_sizeof ());
 				GTK.gtk_tree_model_iter_nth_child (modelHandle, iter, 0, itemCount - 1);

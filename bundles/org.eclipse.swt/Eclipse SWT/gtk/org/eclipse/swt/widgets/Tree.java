@@ -2440,6 +2440,7 @@ void drawInheritedBackground (long cairo) {
 			}
 			long parent = 0;
 			int itemCount = GTK.gtk_tree_model_iter_n_children (modelHandle, parent);
+			int bottom = !GTK.GTK4 && headerVisible ? getHeaderHeight() : 0;
 			GdkRectangle rect = new GdkRectangle ();
 			boolean expanded = true;
 			while (itemCount != 0 && expanded && height [0] > (rect.y + rect.height)) {
@@ -2452,10 +2453,11 @@ void drawInheritedBackground (long cairo) {
 				GTK.gtk_tree_path_free (path);
 				if (parent != 0) OS.g_free (parent);
 				parent = iter;
+				bottom = rect.y + rect.height;
 			}
 			if (parent != 0) OS.g_free (parent);
-			if (height [0] > (rect.y + rect.height)) {
-				drawBackground (control, gdkResource, cairo, 0, rect.y + rect.height, width [0], height [0] - (rect.y + rect.height));
+			if (height [0] > bottom) {
+				drawBackground (control, gdkResource, cairo, 0, bottom, width [0], height [0] - bottom);
 			}
 		}
 	}
