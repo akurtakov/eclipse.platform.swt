@@ -2496,7 +2496,6 @@ long gtk_draw (long widget, long cairo) {
 			int y = Math.max (clip.y, headerHeight);
 			int height = clip.height - (y - clip.y);
 			if (height <= 0) return 0;
-			Cairo.cairo_save (cairo);
 			Cairo.cairo_rectangle (cairo, clip.x, y, clip.width, height);
 			Cairo.cairo_clip (cairo);
 			/*
@@ -2505,9 +2504,7 @@ long gtk_draw (long widget, long cairo) {
 			 * already-rendered items; the background was pre-rendered in EXPOSE_EVENT_INVERSE.
 			 */
 			skipGTK3BackgroundFill = true;
-			long result = super.gtk_draw (widget, cairo);
-			Cairo.cairo_restore (cairo);
-			return result;
+			return super.gtk_draw (widget, cairo);
 		}
 	}
 	if (!GTK.GTK4) {
