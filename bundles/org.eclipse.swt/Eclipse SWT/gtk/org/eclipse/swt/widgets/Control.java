@@ -3839,6 +3839,9 @@ void gtk4_draw(long widget, long cairo, Rectangle bounds) {
  */
 void gtk3_firePaintEvent(long cairo) {
 	if ((state & OBSCURED) != 0) return;
+	if (drawRegion) {
+		cairoClipRegion(cairo);
+	}
 	if (!hooksPaint()) return;
 	GdkRectangle rect = new GdkRectangle();
 	GDK.gdk_cairo_get_clip_rectangle(cairo, rect);
