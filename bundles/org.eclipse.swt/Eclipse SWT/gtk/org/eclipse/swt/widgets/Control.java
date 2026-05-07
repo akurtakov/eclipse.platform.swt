@@ -3829,6 +3829,35 @@ void gtk4_draw(long widget, long cairo, Rectangle bounds) {
 	event.gc = null;
 }
 
+/**
+ * Dispatches SWT.Paint using the given cairo context. Used by Table and Tree
+ * in GTK3 to fire the paint event from the EXPOSE_EVENT (after=true) handler,
+ * so the paint listener's drawing appears on top of the native widget items
+ * rather than being overwritten by them.
+ *
+ * @param cairo the cairo context from the GTK3 "draw" signal
+ */
+void gtk3_firePaintEvent(long cairo) {
+	if ((state & OBSCURED) != 0) return;
+	if (!hooksPaint()) return;
+	GdkRectangle rect = new GdkRectangle();
+	GDK.gdk_cairo_get_clip_rectangle(cairo, rect);
+	Event event = new Event();
+	event.count = 1;
+	Rectangle eventBounds = new Rectangle(rect.x, rect.y, rect.width, rect.height);
+	if ((style & SWT.MIRRORED) != 0) eventBounds.x = getClientWidth() - eventBounds.width - eventBounds.x;
+	event.setBounds(eventBounds);
+	GCData data = new GCData();
+	if (drawRegion) data.regionSet = eventRegion;
+	data.cairo = cairo;
+	GC gc = event.gc = GC.gtk_new(this, data);
+	gc.setClipping(eventBounds.x, eventBounds.y, eventBounds.width, eventBounds.height);
+	drawWidget(gc);
+	sendEvent(SWT.Paint, event);
+	gc.dispose();
+	event.gc = null;
+}
+
 @Override
 long gtk_draw (long widget, long cairo) {
 	if (checkScaleFactor) {

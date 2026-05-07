@@ -2310,7 +2310,18 @@ long gtk_draw (long widget, long cairo) {
 		return 0;
 	}
 	drawInheritedBackground (cairo);
-	return super.gtk_draw (widget, cairo);
+	if (GTK.GTK4) {
+		return super.gtk_draw (widget, cairo);
+	}
+	/*
+	 * GTK3: Do not fire SWT.Paint here. This method is called from
+	 * EXPOSE_EVENT_INVERSE (before GTK draws the table items), so any
+	 * painting done here would be overwritten by the items. Instead,
+	 * SWT.Paint is dispatched from windowProc EXPOSE_EVENT (after=true),
+	 * ensuring the paint listener's drawing appears on top of items.
+	 * See https://github.com/eclipse-platform/eclipse.platform.swt/issues/3285
+	 */
+	return 0;
 }
 
 @Override
@@ -4115,6 +4126,16 @@ long windowProc (long handle, long arg0, long user_data) {
 					noChildDrawing = true;
 				}
 				propagateDraw(handle, arg0);
+			}
+			/*
+			 * GTK3: Fire SWT.Paint here (EXPOSE_EVENT fires after=true, i.e. after
+			 * GTK's default handler has drawn the table items). This ensures the
+			 * paint listener's drawing appears on top of items rather than being
+			 * overwritten by them.
+			 * See https://github.com/eclipse-platform/eclipse.platform.swt/issues/3285
+			 */
+			if (!GTK.GTK4) {
+				gtk3_firePaintEvent(arg0);
 			}
 			break;
 		}
