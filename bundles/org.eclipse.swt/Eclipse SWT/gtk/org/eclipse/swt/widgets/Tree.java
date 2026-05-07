@@ -2499,10 +2499,24 @@ long gtk_draw (long widget, long cairo) {
 			Cairo.cairo_save (cairo);
 			Cairo.cairo_rectangle (cairo, clip.x, y, clip.width, height);
 			Cairo.cairo_clip (cairo);
+			/*
+			 * On GTK3 this is called from EXPOSE_EVENT (after items have been rendered).
+			 * Skip Composite.gtk_draw's gtk_render_background to avoid overwriting the
+			 * already-rendered items; the background was pre-rendered in EXPOSE_EVENT_INVERSE.
+			 */
+			skipGTK3BackgroundFill = true;
 			long result = super.gtk_draw (widget, cairo);
 			Cairo.cairo_restore (cairo);
 			return result;
 		}
+	}
+	if (!GTK.GTK4) {
+		/*
+		 * On GTK3 this is called from EXPOSE_EVENT (after items have been rendered).
+		 * Skip Composite.gtk_draw's gtk_render_background to avoid overwriting the
+		 * already-rendered items; the background was pre-rendered in EXPOSE_EVENT_INVERSE.
+		 */
+		skipGTK3BackgroundFill = true;
 	}
 	return super.gtk_draw (widget, cairo);
 }
@@ -4251,6 +4265,22 @@ long windowProc (long handle, long arg0, long user_data) {
 				}
 			}
 			if (!GTK.GTK4) {
+				/*
+				 * Fill the CSS background before GTK renders items. This mirrors the
+				 * gtk_render_background call in Composite.gtk_draw, which is intentionally
+				 * skipped (via skipGTK3BackgroundFill) when gtk_draw is called from
+				 * EXPOSE_EVENT (after items render) to avoid overwriting already-rendered
+				 * items.  By doing it here instead, the background is established first and
+				 * GTK's item rendering appears on top.
+				 */
+				if (backgroundImage == null) {
+					long context = GTK.gtk_widget_get_style_context (handle);
+					GtkAllocation allocation = new GtkAllocation ();
+					GTK.gtk_widget_get_allocation (handle, allocation);
+					int w = (state & ZERO_WIDTH) != 0 ? 0 : allocation.width;
+					int h = (state & ZERO_HEIGHT) != 0 ? 0 : allocation.height;
+					GTK.gtk_render_background (context, arg0, 0, 0, w, h);
+				}
 				/*
 				 * Fill the inherited background before GTK renders. This must run in
 				 * EXPOSE_EVENT_INVERSE (before the default draw handler) so that GTK's

@@ -107,6 +107,14 @@ public class Composite extends Scrollable {
 	 * See bug 535978.
 	 */
 	HashMap<Widget, Boolean> childrenLowered = new HashMap<>();
+	/**
+	 * GTK3 only: when {@code true}, skip the {@code gtk_render_background} call in
+	 * {@link #gtk_draw}. Used by {@link Table} and {@link Tree} which pre-render the
+	 * CSS background in {@code EXPOSE_EVENT_INVERSE} (before GTK renders items) so
+	 * that items remain visible. The flag is consumed (reset to {@code false}) inside
+	 * {@link #gtk_draw} immediately after the check.
+	 */
+	boolean skipGTK3BackgroundFill;
 
 Composite () {
 	/* Do nothing */
@@ -498,7 +506,11 @@ long gtk_draw (long widget, long cairo) {
 	int height = (state & ZERO_HEIGHT) != 0 ? 0 : allocation.height;
 	// We specify a 0 value for x & y as we want the whole widget to be
 	// colored, not some portion of it.
-	if (backgroundImage == null) {
+	// skipGTK3BackgroundFill is set by Table/Tree when the background has
+	// already been rendered in EXPOSE_EVENT_INVERSE (before item rendering).
+	boolean skipBg = skipGTK3BackgroundFill;
+	skipGTK3BackgroundFill = false;
+	if (backgroundImage == null && !skipBg) {
 		GTK.gtk_render_background(context, cairo, 0, 0, width, height);
 	}
 	// If fixClipHandle is set: iterate through the children of widget
