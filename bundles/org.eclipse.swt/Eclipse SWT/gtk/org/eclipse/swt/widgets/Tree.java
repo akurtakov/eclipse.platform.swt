@@ -2481,7 +2481,13 @@ long gtk_draw (long widget, long cairo) {
 		GTK.gtk_widget_queue_draw(handle);
 		return 0;
 	}
-	drawInheritedBackground (cairo);
+	/*
+	 * On GTK4, gtk_draw is called before GTK renders, so it is safe to fill
+	 * the inherited background here. On GTK3, gtk_draw is called from
+	 * EXPOSE_EVENT (after GTK renders), so drawInheritedBackground is called
+	 * in EXPOSE_EVENT_INVERSE instead to avoid overpainting already-rendered items.
+	 */
+	if (GTK.GTK4) drawInheritedBackground (cairo);
 	if (!GTK.GTK4 && headerVisible) {
 		int headerHeight = getHeaderHeight();
 		if (headerHeight > 0) {
@@ -4245,6 +4251,15 @@ long windowProc (long handle, long arg0, long user_data) {
 				}
 			}
 			if (!GTK.GTK4) {
+				/*
+				 * Fill the inherited background before GTK renders. This must run in
+				 * EXPOSE_EVENT_INVERSE (before the default draw handler) so that GTK's
+				 * item rendering paints on top and items remain visible. Calling
+				 * drawInheritedBackground from gtk_draw (after GTK renders) would
+				 * overpaint already-rendered items due to coordinate-system differences
+				 * between the main widget window and the bin_window.
+				 */
+				drawInheritedBackground (arg0);
 				/*
 				 * On GTK3, do NOT delegate to super.windowProc here. Widget.windowProc
 				 * would call gtk_draw() for containers in EXPOSE_EVENT_INVERSE, which
