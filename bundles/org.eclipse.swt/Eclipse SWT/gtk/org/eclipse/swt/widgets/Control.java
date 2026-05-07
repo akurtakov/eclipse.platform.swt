@@ -3831,23 +3831,6 @@ void gtk4_draw(long widget, long cairo, Rectangle bounds) {
 
 @Override
 long gtk_draw (long widget, long cairo) {
-	if ((state & OBSCURED) != 0) return 0;
-	return gtk3_firePaintEvent (cairo);
-}
-
-/**
- * GTK3 only: dispatches the SWT.Paint event for the current cairo context.
- * This is the core SWT.Paint-dispatch portion of {@link #gtk_draw}, extracted
- * so that subclasses (Table, Tree) can invoke it directly from their
- * {@code EXPOSE_EVENT} handler without going through
- * {@code Composite.gtk_draw()}, which would call
- * {@code gtk_render_background()} and overwrite already-rendered items.
- * <p>
- * Callers are responsible for any necessary OBSCURED check before invoking
- * this method.
- * </p>
- */
-long gtk3_firePaintEvent (long cairo) {
 	if (checkScaleFactor) {
 		long surface = Cairo.cairo_get_target(cairo);
 		if (surface != 0) {
@@ -3861,6 +3844,7 @@ long gtk3_firePaintEvent (long cairo) {
 			checkScaleFactor = false;
 		}
 	}
+	if ((state & OBSCURED) != 0) return 0;
 	GdkRectangle rect = new GdkRectangle ();
 	GDK.gdk_cairo_get_clip_rectangle (cairo, rect);
 	/*

@@ -2517,6 +2517,47 @@ long gtk_draw (long widget, long cairo) {
 	return super.gtk_draw (widget, cairo);
 }
 
+/*
+ * GTK3-only helper for Tree.gtk_draw().
+ * Keep this in sync with Control.gtk_draw() paint dispatch logic.
+ */
+private long gtk3_firePaintEvent (long cairo) {
+	if (checkScaleFactor) {
+		long surface = Cairo.cairo_get_target(cairo);
+		if (surface != 0) {
+			double [] sx = new double [1];
+			double [] sy = new double [1];
+			Cairo.cairo_surface_get_device_scale(surface, sx, sy);
+			long display = GDK.gdk_display_get_default();
+			long monitor = GDK.gdk_display_get_monitor_at_point(display, 0, 0);
+			int scale = GDK.gdk_monitor_get_scale_factor(monitor);
+			autoScale = !(scale == Math.round(sx[0]));
+			checkScaleFactor = false;
+		}
+	}
+	GdkRectangle rect = new GdkRectangle ();
+	GDK.gdk_cairo_get_clip_rectangle (cairo, rect);
+	if (drawRegion) {
+		cairoClipRegion(cairo);
+	}
+	if (!hooksPaint ()) return 0;
+	Event event = new Event ();
+	event.count = 1;
+	Rectangle eventBounds = new Rectangle (rect.x, rect.y, rect.width, rect.height);
+	if ((style & SWT.MIRRORED) != 0) eventBounds.x = getClientWidth () - eventBounds.width - eventBounds.x;
+	event.setBounds (eventBounds);
+	GCData data = new GCData ();
+	if (drawRegion) data.regionSet = eventRegion;
+	data.cairo = cairo;
+	GC gc = event.gc = GC.gtk_new (this, data);
+	gc.setClipping (eventBounds.x, eventBounds.y, eventBounds.width, eventBounds.height);
+	drawWidget (gc);
+	sendEvent (SWT.Paint, event);
+	gc.dispose ();
+	event.gc = null;
+	return 0;
+}
+
 @Override
 long gtk3_motion_notify_event (long widget, long event) {
 	long window = GDK.gdk_event_get_window (event);
