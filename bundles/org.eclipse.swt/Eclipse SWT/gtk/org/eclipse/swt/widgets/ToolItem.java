@@ -896,7 +896,6 @@ int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long 
 		boolean translated = GTK4.gtk_widget_translate_coordinates(arrowHandle, parent.handle, 0, 0, destX, destY);
 		e.x = translated ? (int) destX[0] : allocation.x;
 		if ((parent.style & SWT.MIRRORED) != 0) e.x = parent.getClientWidth() - allocation.width - e.x;
-		System.out.println(e.x);
 		e.y = translated ? (int) destY[0] + allocation.height : allocation.y + allocation.height;
 		sendSelectionEvent(SWT.Selection, e, false);
 		return GTK4.GTK_EVENT_SEQUENCE_CLAIMED;
@@ -1091,7 +1090,17 @@ void resizeControl () {
 		*/
 		Rectangle itemRect = getBounds ();
 		control.setSize (itemRect.width, itemRect.height);
-		resizeHandle(itemRect.width, itemRect.height);
+		/*
+		 * On GTK4, unshown widgets have a default allocation of {0,0,0,0} whereas
+		 * GTK3 uses {0,0,1,1}. Calling resizeHandle() with zero dimensions would
+		 * set the GtkSeparator's size-request to 0, permanently overriding any size
+		 * previously set via setWidth() and keeping the separator (and its hosted
+		 * control) invisible. Only call resizeHandle() when the item actually has
+		 * valid (non-zero) dimensions.
+		 */
+		if (itemRect.width > 0 && itemRect.height > 0) {
+			resizeHandle(itemRect.width, itemRect.height);
+		}
 		Rectangle rect = control.getBounds ();
 		rect.x = itemRect.x + (itemRect.width - rect.width) / 2;
 		rect.y = itemRect.y + (itemRect.height - rect.height) / 2;
