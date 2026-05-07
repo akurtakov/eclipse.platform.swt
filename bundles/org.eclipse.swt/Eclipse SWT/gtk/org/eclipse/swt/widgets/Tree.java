@@ -2464,6 +2464,18 @@ void drawInheritedBackground (long cairo) {
 }
 
 @Override
+boolean skipCssBackground () {
+	/*
+	 * On GTK3, the CSS background is already rendered in EXPOSE_EVENT_INVERSE
+	 * (before GTK draws items). gtk_draw() fires from EXPOSE_EVENT, after items
+	 * are rendered; calling gtk_render_background() here would overwrite them.
+	 * Composite.gtk_draw() honours this flag and skips gtk_render_background().
+	 * On GTK4 the draw order is reversed so no skip is needed.
+	 */
+	return !GTK.GTK4;
+}
+
+@Override
 long gtk_draw (long widget, long cairo) {
 	boolean haveBoundsChanged = boundsChangedSinceLastDraw;
 	boundsChangedSinceLastDraw = false;
@@ -2488,6 +2500,17 @@ long gtk_draw (long widget, long cairo) {
 	 * in EXPOSE_EVENT_INVERSE instead to avoid overpainting already-rendered items.
 	 */
 	if (GTK.GTK4) drawInheritedBackground (cairo);
+	/*
+	 * On GTK3 with visible headers, clip the SWT.Paint dispatch to the area
+	 * below the header row to avoid custom paint covering the column headers.
+	 * The cairo context in gtk_draw uses widget coordinates (y=0 = top of the
+	 * whole widget, including the header), so without this clip SWT.Paint
+	 * listeners could draw over and hide the header.
+	 *
+	 * skipCssBackground() returns true for GTK3, so Composite.gtk_draw() will
+	 * not call gtk_render_background() — the CSS background was already painted
+	 * in EXPOSE_EVENT_INVERSE.
+	 */
 	if (!GTK.GTK4 && headerVisible) {
 		int headerHeight = getHeaderHeight();
 		if (headerHeight > 0) {
@@ -2499,63 +2522,12 @@ long gtk_draw (long widget, long cairo) {
 			Cairo.cairo_save (cairo);
 			Cairo.cairo_rectangle (cairo, clip.x, y, clip.width, height);
 			Cairo.cairo_clip (cairo);
-			long result = gtk3_firePaintEvent (cairo);
+			long result = super.gtk_draw (widget, cairo);
 			Cairo.cairo_restore (cairo);
 			return result;
 		}
 	}
-	if (!GTK.GTK4) {
-		/*
-		 * GTK3: gtk_draw is called from EXPOSE_EVENT (after GTK has rendered items).
-		 * Do NOT call super.gtk_draw() here — that chains to Composite.gtk_draw()
-		 * which calls gtk_render_background(0,0,w,h) and overwrites the rendered items.
-		 * The CSS background is already painted in EXPOSE_EVENT_INVERSE. Only dispatch
-		 * the SWT.Paint event.
-		 */
-		return gtk3_firePaintEvent (cairo);
-	}
 	return super.gtk_draw (widget, cairo);
-}
-
-/*
- * GTK3-only helper for Tree.gtk_draw().
- * Keep this in sync with Control.gtk_draw() paint dispatch logic.
- */
-private long gtk3_firePaintEvent (long cairo) {
-	if (checkScaleFactor) {
-		long surface = Cairo.cairo_get_target(cairo);
-		if (surface != 0) {
-			double [] sx = new double [1];
-			double [] sy = new double [1];
-			Cairo.cairo_surface_get_device_scale(surface, sx, sy);
-			long display = GDK.gdk_display_get_default();
-			long monitor = GDK.gdk_display_get_monitor_at_point(display, 0, 0);
-			int scale = GDK.gdk_monitor_get_scale_factor(monitor);
-			autoScale = !(scale == Math.round(sx[0]));
-			checkScaleFactor = false;
-		}
-	}
-	GdkRectangle rect = new GdkRectangle ();
-	GDK.gdk_cairo_get_clip_rectangle (cairo, rect);
-	if (drawRegion) {
-		cairoClipRegion(cairo);
-	}
-	if (!hooksPaint ()) return 0;
-	Event event = new Event ();
-	event.count = 1;
-	Rectangle eventBounds = new Rectangle (rect.x, rect.y, rect.width, rect.height);
-	if ((style & SWT.MIRRORED) != 0) eventBounds.x = getClientWidth () - eventBounds.width - eventBounds.x;
-	event.setBounds (eventBounds);
-	GCData data = new GCData ();
-	if (drawRegion) data.regionSet = eventRegion;
-	data.cairo = cairo;
-	GC gc = event.gc = GC.gtk_new (this, data);
-	gc.setClipping (eventBounds.x, eventBounds.y, eventBounds.width, eventBounds.height);
-	drawWidget (gc);
-	sendEvent (SWT.Paint, event);
-	gc.dispose ();
-	event.gc = null;
-	return 0;
 }
 
 @Override

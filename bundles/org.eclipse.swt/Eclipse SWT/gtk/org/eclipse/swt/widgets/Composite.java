@@ -489,6 +489,25 @@ void adjustChildClipping (long widget) {
 	GTK3.gtk_widget_set_clip(widget, allocation);
 }
 
+/**
+ * Hook for subclasses that manage their own CSS background rendering and
+ * want to suppress the {@code gtk_render_background()} call inside
+ * {@link #gtk_draw(long, long)}.
+ * <p>
+ * Returns {@code true} when the subclass has already arranged for the CSS
+ * background to be painted (e.g. in {@code EXPOSE_EVENT_INVERSE} on GTK3),
+ * so that {@code Composite.gtk_draw()} should skip the redundant paint.
+ * </p>
+ * <p>
+ * The default implementation returns {@code false} (no skip). Subclasses
+ * such as {@code Table} and {@code Tree} override this to return
+ * {@code !GTK.GTK4} on GTK3.
+ * </p>
+ */
+boolean skipCssBackground () {
+	return false;
+}
+
 @Override
 long gtk_draw (long widget, long cairo) {
 	long context = GTK.gtk_widget_get_style_context(widget);
@@ -498,7 +517,11 @@ long gtk_draw (long widget, long cairo) {
 	int height = (state & ZERO_HEIGHT) != 0 ? 0 : allocation.height;
 	// We specify a 0 value for x & y as we want the whole widget to be
 	// colored, not some portion of it.
-	if (backgroundImage == null) {
+	// skipCssBackground() allows subclasses (e.g. Table, Tree on GTK3) to
+	// suppress this call when they have already painted the background in
+	// EXPOSE_EVENT_INVERSE, avoiding a double-paint that would overwrite
+	// already-rendered items.
+	if (backgroundImage == null && !skipCssBackground()) {
 		GTK.gtk_render_background(context, cairo, 0, 0, width, height);
 	}
 	// If fixClipHandle is set: iterate through the children of widget
