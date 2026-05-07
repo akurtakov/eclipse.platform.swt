@@ -2496,24 +2496,23 @@ long gtk_draw (long widget, long cairo) {
 			int y = Math.max (clip.y, headerHeight);
 			int height = clip.height - (y - clip.y);
 			if (height <= 0) return 0;
+			Cairo.cairo_save (cairo);
 			Cairo.cairo_rectangle (cairo, clip.x, y, clip.width, height);
 			Cairo.cairo_clip (cairo);
-			/*
-			 * On GTK3 this is called from EXPOSE_EVENT (after items have been rendered).
-			 * Skip Composite.gtk_draw's gtk_render_background to avoid overwriting the
-			 * already-rendered items; the background was pre-rendered in EXPOSE_EVENT_INVERSE.
-			 */
-			skipGTK3BackgroundFill = true;
-			return super.gtk_draw (widget, cairo);
+			long result = gtk3_firePaintEvent (cairo);
+			Cairo.cairo_restore (cairo);
+			return result;
 		}
 	}
 	if (!GTK.GTK4) {
 		/*
-		 * On GTK3 this is called from EXPOSE_EVENT (after items have been rendered).
-		 * Skip Composite.gtk_draw's gtk_render_background to avoid overwriting the
-		 * already-rendered items; the background was pre-rendered in EXPOSE_EVENT_INVERSE.
+		 * GTK3: gtk_draw is called from EXPOSE_EVENT (after GTK has rendered items).
+		 * Do NOT call super.gtk_draw() here — that chains to Composite.gtk_draw()
+		 * which calls gtk_render_background(0,0,w,h) and overwrites the rendered items.
+		 * The CSS background is already painted in EXPOSE_EVENT_INVERSE. Only dispatch
+		 * the SWT.Paint event.
 		 */
-		skipGTK3BackgroundFill = true;
+		return gtk3_firePaintEvent (cairo);
 	}
 	return super.gtk_draw (widget, cairo);
 }
@@ -4263,12 +4262,11 @@ long windowProc (long handle, long arg0, long user_data) {
 			}
 			if (!GTK.GTK4) {
 				/*
-				 * Fill the CSS background before GTK renders items. This mirrors the
-				 * gtk_render_background call in Composite.gtk_draw, which is intentionally
-				 * skipped (via skipGTK3BackgroundFill) when gtk_draw is called from
-				 * EXPOSE_EVENT (after items render) to avoid overwriting already-rendered
-				 * items.  By doing it here instead, the background is established first and
-				 * GTK's item rendering appears on top.
+				 * Fill the CSS background before GTK renders items. This must run in
+				 * EXPOSE_EVENT_INVERSE (before the default draw handler) so that GTK's
+				 * item rendering paints on top and items remain visible. gtk_draw() is called
+				 * from EXPOSE_EVENT (after items render) and skips Composite.gtk_draw() to
+				 * avoid overwriting items; only the SWT.Paint event is dispatched there.
 				 */
 				if (backgroundImage == null) {
 					long context = GTK.gtk_widget_get_style_context (handle);
