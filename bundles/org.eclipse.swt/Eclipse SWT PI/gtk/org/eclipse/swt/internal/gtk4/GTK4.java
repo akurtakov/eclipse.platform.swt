@@ -78,6 +78,11 @@ public class GTK4 {
 	 * @param sibling cast=(GtkWidget *)
 	 */
 	public static final native void gtk_box_insert_child_after(long box, long child, long sibling);
+	/**
+	 * @param box cast=(GtkBox *)
+	 * @param child cast=(GtkWidget *)
+	 */
+	public static final native void gtk_box_remove(long box, long child);
 
 	/* GtkCalendar */
 	/** @param calendar cast=(GtkCalendar *) */

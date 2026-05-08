@@ -80,6 +80,7 @@ typedef enum {
 	gtk_1box_1append_FUNC,
 	gtk_1box_1insert_1child_1after_FUNC,
 	gtk_1box_1prepend_FUNC,
+	gtk_1box_1remove_FUNC,
 	gtk_1button_1new_1from_1icon_1name_FUNC,
 	gtk_1button_1set_1child_FUNC,
 	gtk_1calendar_1get_1date_FUNC,

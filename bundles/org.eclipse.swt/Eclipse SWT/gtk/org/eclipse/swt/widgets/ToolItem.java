@@ -51,6 +51,8 @@ public class ToolItem extends Item {
 
 	/** GTK4 only field, used to keep track of the containing box of the image & label */
 	long boxHandle, groupHandle;
+	/** GTK4 only field, used to keep track of the GtkSeparator inside a SEPARATOR ToolItem's GtkBox */
+	long separatorHandle;
 
 	ToolBar parent;
 	Control control;
@@ -209,8 +211,11 @@ void createHandle (int index) {
 	switch (style & bits) {
 		case SWT.SEPARATOR:
 			if (GTK.GTK4) {
-				handle = GTK.gtk_separator_new(GTK.GTK_ORIENTATION_VERTICAL);
+				handle = GTK.gtk_box_new(GTK.GTK_ORIENTATION_HORIZONTAL, 0);
 				if (handle == 0) error(SWT.ERROR_NO_HANDLES);
+				separatorHandle = GTK.gtk_separator_new(GTK.GTK_ORIENTATION_VERTICAL);
+				if (separatorHandle == 0) error(SWT.ERROR_NO_HANDLES);
+				GTK4.gtk_box_append(handle, separatorHandle);
 			} else {
 				handle = GTK3.gtk_separator_tool_item_new ();
 				if (handle == 0) error(SWT.ERROR_NO_HANDLES);
@@ -860,6 +865,9 @@ void gtk4_leave_event(long controller, long event) {
 @Override
 long gtk_map (long widget) {
 	parent.fixZOrder ();
+	if (GTK.GTK4 && (style & SWT.SEPARATOR) != 0 && control != null) {
+		resizeControl();
+	}
 	return 0;
 }
 
@@ -1039,7 +1047,7 @@ void register () {
 @Override
 void releaseHandle () {
 	super.releaseHandle ();
-	arrowHandle = labelHandle = imageHandle = eventHandle = 0;
+	arrowHandle = labelHandle = imageHandle = eventHandle = separatorHandle = 0;
 }
 
 @Override
@@ -1090,6 +1098,16 @@ void resizeControl () {
 		* combo box.
 		*/
 		Rectangle itemRect = getBounds ();
+		if (itemRect.width <= 0 || itemRect.height <= 0) return;
+		if (GTK.GTK4 && (style & SWT.SEPARATOR) != 0) {
+			/*
+			 * On GTK4 the control is a child of the separator's GtkBox.
+			 * The box manages layout via hexpand/vexpand/fill, so we only
+			 * need to size the handle (the box itself) and skip setLocation.
+			 */
+			resizeHandle(itemRect.width, itemRect.height);
+			return;
+		}
 		control.setSize (itemRect.width, itemRect.height);
 		resizeHandle(itemRect.width, itemRect.height);
 		Rectangle rect = control.getBounds ();
@@ -1180,6 +1198,42 @@ public void setControl (Control control) {
 	if ((style & SWT.SEPARATOR) == 0) return;
 	if (this.control == control) return;
 	this.control = control;
+	if (GTK.GTK4) {
+		if (control != null) {
+			// Remove the separator from the box
+			if (separatorHandle != 0) {
+				GTK4.gtk_box_remove(handle, separatorHandle);
+			}
+			// Reparent the control's topHandle into our box
+			long controlHandle = control.topHandle();
+			long currentParent = GTK.gtk_widget_get_parent(controlHandle);
+			if (currentParent != 0) {
+				OS.g_object_ref(controlHandle);
+				if (OS.g_type_is_a(OS.G_OBJECT_TYPE(currentParent), OS.swt_fixed_get_type())) {
+					OS.swt_fixed_remove(currentParent, controlHandle);
+				} else {
+					GTK.gtk_widget_unparent(controlHandle);
+				}
+				GTK4.gtk_box_append(handle, controlHandle);
+				OS.g_object_unref(controlHandle);
+			} else {
+				GTK4.gtk_box_append(handle, controlHandle);
+			}
+			// Let the control fill the available space
+			GTK.gtk_widget_set_hexpand(controlHandle, true);
+			GTK.gtk_widget_set_vexpand(controlHandle, true);
+			GTK.gtk_widget_set_halign(controlHandle, GTK.GTK_ALIGN_FILL);
+			GTK.gtk_widget_set_valign(controlHandle, GTK.GTK_ALIGN_FILL);
+		} else {
+			// Remove any existing children from the box, then re-add the separator
+			for (long child = GTK4.gtk_widget_get_first_child(handle); child != 0; child = GTK4.gtk_widget_get_first_child(handle)) {
+				GTK4.gtk_box_remove(handle, child);
+			}
+			if (separatorHandle != 0) {
+				GTK4.gtk_box_append(handle, separatorHandle);
+			}
+		}
+	}
 	parent.relayout ();
 	// Fix the Z-order in order to ensure proper event traversal. See bug 546914.
 	if (control != null) {

@@ -754,6 +754,16 @@ JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1box_1prepend)
 }
 #endif
 
+#ifndef NO_gtk_1box_1remove
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1box_1remove)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
+{
+	GTK4_NATIVE_ENTER(env, that, gtk_1box_1remove_FUNC);
+	gtk_box_remove((GtkBox *)arg0, (GtkWidget *)arg1);
+	GTK4_NATIVE_EXIT(env, that, gtk_1box_1remove_FUNC);
+}
+#endif
+
 #ifndef NO_gtk_1button_1new_1from_1icon_1name
 JNIEXPORT jlong JNICALL GTK4_NATIVE(gtk_1button_1new_1from_1icon_1name)
 	(JNIEnv *env, jclass that, jbyteArray arg0)
