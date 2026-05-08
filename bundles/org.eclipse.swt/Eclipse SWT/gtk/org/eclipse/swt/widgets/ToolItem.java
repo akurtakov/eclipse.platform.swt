@@ -1110,7 +1110,7 @@ void resizeControl () {
 		 * invalid allocations and may collapse the separator size request.
 		 */
 		if (itemRect.width <= 0 || itemRect.height <= 0) return;
-		if (GTK.GTK4 && (style & SWT.SEPARATOR) != 0 && GTK.gtk_widget_get_parent(control.topHandle()) == handle) {
+		if (GTK.GTK4 && (style & SWT.SEPARATOR) != 0) {
 			resizeHandle(itemRect.width, itemRect.height);
 			GTK.gtk_widget_set_size_request(control.topHandle(), itemRect.width, itemRect.height);
 			return;
