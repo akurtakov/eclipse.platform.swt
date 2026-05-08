@@ -574,6 +574,9 @@ void swt_fixed_move (SwtFixed *fixed, GtkWidget *widget, gint x, gint y) {
 }
 
 void swt_fixed_resize (SwtFixed *fixed, GtkWidget *widget, gint width, gint height) {
+	g_return_if_fail(SWT_IS_FIXED(fixed));
+	g_return_if_fail(GTK_IS_WIDGET(widget));
+
 	SwtFixedPrivate *priv = fixed->priv;
 	GList *list;
 
@@ -935,6 +938,9 @@ void swt_fixed_move (SwtFixed *fixed, GtkWidget *widget, gint x, gint y) {
 }
 
 void swt_fixed_resize (SwtFixed *fixed, GtkWidget *widget, gint width, gint height) {
+	g_return_if_fail(SWT_IS_FIXED(fixed));
+	g_return_if_fail(GTK_IS_WIDGET(widget));
+
 	SwtFixedPrivate* priv = swt_fixed_get_instance_private(fixed);
 	GList* list = priv->children;
 
