@@ -164,6 +164,48 @@ public void test_separatorControl_isSizedAfterShellSetSizeOpen() {
 	assertTrue(launchbar.getBounds().height > 0);
 }
 
+@Test
+public void test_separatorControl_canBeReplaced() {
+	ToolBar bar = new ToolBar(shell, SWT.HORIZONTAL);
+	new ToolItem(bar, SWT.PUSH).setText("left");
+
+	Composite first = new Composite(bar, SWT.NONE);
+	first.setLayout(new RowLayout(SWT.HORIZONTAL));
+	new Button(first, SWT.PUSH).setText("First");
+
+	Composite second = new Composite(bar, SWT.NONE);
+	second.setLayout(new RowLayout(SWT.HORIZONTAL));
+	new Button(second, SWT.PUSH).setText("Second");
+
+	ToolItem separator = new ToolItem(bar, SWT.SEPARATOR);
+	separator.setControl(first);
+	separator.setWidth(first.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x);
+
+	new ToolItem(bar, SWT.PUSH).setText("right");
+
+	shell.pack();
+	shell.open();
+	while (shell.getDisplay().readAndDispatch()) {
+	}
+
+	separator.setControl(second);
+	separator.setWidth(second.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x);
+	while (shell.getDisplay().readAndDispatch()) {
+	}
+
+	assertTrue(!first.isDisposed());
+	assertEquals(second, separator.getControl());
+	assertTrue(second.getBounds().width > 0);
+	assertTrue(second.getBounds().height > 0);
+
+	separator.setControl(null);
+	while (shell.getDisplay().readAndDispatch()) {
+	}
+
+	assertTrue(!second.isDisposed());
+	assertEquals(null, separator.getControl());
+}
+
 @Override
 @Test
 public void test_setTextLjava_lang_String() {

@@ -46,7 +46,7 @@ import org.eclipse.swt.internal.gtk4.*;
  * @noextend This class is not intended to be subclassed by clients.
  */
 public class ToolItem extends Item {
-	long arrowHandle, labelHandle, imageHandle;
+	long arrowHandle, labelHandle, imageHandle, separatorHandle;
 	long eventHandle, proxyMenuItem, provider;
 
 	/** GTK4 only field, used to keep track of the containing box of the image & label */
@@ -209,8 +209,12 @@ void createHandle (int index) {
 	switch (style & bits) {
 		case SWT.SEPARATOR:
 			if (GTK.GTK4) {
-				handle = GTK.gtk_separator_new(GTK.GTK_ORIENTATION_VERTICAL);
+				handle = GTK.gtk_box_new(GTK.GTK_ORIENTATION_HORIZONTAL, 0);
 				if (handle == 0) error(SWT.ERROR_NO_HANDLES);
+				int orientation = (parent.style & SWT.VERTICAL) != 0 ? GTK.GTK_ORIENTATION_HORIZONTAL : GTK.GTK_ORIENTATION_VERTICAL;
+				separatorHandle = GTK.gtk_separator_new(orientation);
+				if (separatorHandle == 0) error(SWT.ERROR_NO_HANDLES);
+				GTK4.gtk_box_append(handle, separatorHandle);
 			} else {
 				handle = GTK3.gtk_separator_tool_item_new ();
 				if (handle == 0) error(SWT.ERROR_NO_HANDLES);
@@ -1042,11 +1046,18 @@ void register () {
 @Override
 void releaseHandle () {
 	super.releaseHandle ();
-	arrowHandle = labelHandle = imageHandle = eventHandle = 0;
+	arrowHandle = labelHandle = imageHandle = eventHandle = separatorHandle = 0;
 }
 
 @Override
 void releaseWidget () {
+	if (GTK.GTK4 && (style & SWT.SEPARATOR) != 0 && control != null && !control.isDisposed ()) {
+		long controlHandle = control.topHandle();
+		if (GTK.gtk_widget_get_parent(controlHandle) == handle) {
+			GTK.gtk_widget_unparent(controlHandle);
+			OS.swt_fixed_add(parent.parentingHandle(), controlHandle);
+		}
+	}
 	super.releaseWidget ();
 	if (parent.currentFocusItem == this) parent.currentFocusItem = null;
 	parent = null;
@@ -1099,6 +1110,11 @@ void resizeControl () {
 		 * invalid allocations and may collapse the separator size request.
 		 */
 		if (itemRect.width <= 0 || itemRect.height <= 0) return;
+		if (GTK.GTK4 && (style & SWT.SEPARATOR) != 0 && GTK.gtk_widget_get_parent(control.topHandle()) == handle) {
+			resizeHandle(itemRect.width, itemRect.height);
+			GTK.gtk_widget_set_size_request(control.topHandle(), itemRect.width, itemRect.height);
+			return;
+		}
 		control.setSize (itemRect.width, itemRect.height);
 		resizeHandle(itemRect.width, itemRect.height);
 		Rectangle rect = control.getBounds ();
@@ -1188,7 +1204,34 @@ public void setControl (Control control) {
 	}
 	if ((style & SWT.SEPARATOR) == 0) return;
 	if (this.control == control) return;
+	Control oldControl = this.control;
+	if (GTK.GTK4 && oldControl != null && !oldControl.isDisposed ()) {
+		long oldControlHandle = oldControl.topHandle();
+		if (GTK.gtk_widget_get_parent(oldControlHandle) == handle) {
+			GTK.gtk_widget_unparent(oldControlHandle);
+			OS.swt_fixed_add(parent.parentingHandle(), oldControlHandle);
+		}
+	}
 	this.control = control;
+	if (GTK.GTK4) {
+		if (control == null) {
+			if (separatorHandle != 0) {
+				if (GTK.gtk_widget_get_parent(separatorHandle) != 0) {
+					GTK.gtk_widget_unparent(separatorHandle);
+				}
+				GTK4.gtk_box_append(handle, separatorHandle);
+			}
+		} else {
+			if (separatorHandle != 0 && GTK.gtk_widget_get_parent(separatorHandle) == handle) {
+				GTK.gtk_widget_unparent(separatorHandle);
+			}
+			long controlHandle = control.topHandle();
+			if (GTK.gtk_widget_get_parent(controlHandle) != 0) {
+				GTK.gtk_widget_unparent(controlHandle);
+			}
+			GTK4.gtk_box_append(handle, controlHandle);
+		}
+	}
 	parent.relayout ();
 	// Fix the Z-order in order to ensure proper event traversal. See bug 546914.
 	if (control != null) {
