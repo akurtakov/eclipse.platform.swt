@@ -1041,7 +1041,12 @@ void moveHandle (int x, int y) {
 
 void resizeHandle (int width, int height) {
 	long topHandle = topHandle ();
-	OS.swt_fixed_resize (GTK.gtk_widget_get_parent (topHandle), topHandle, width, height);
+	long parentHandle = GTK.gtk_widget_get_parent (topHandle);
+	if (parentHandle != 0 && OS.g_type_is_a(OS.G_OBJECT_TYPE(parentHandle), OS.swt_fixed_get_type())) {
+		OS.swt_fixed_resize (parentHandle, topHandle, width, height);
+	} else {
+		GTK.gtk_widget_set_size_request (topHandle, width, height);
+	}
 	if (topHandle != handle) {
 		Point sizes = resizeCalculationsGTK3 (handle, width, height);
 		width = sizes.x;

@@ -580,7 +580,12 @@ void releaseChildren (boolean destroy) {
 @Override
 void resizeHandle (int width, int height) {
 	if (fixedHandle != 0) {
-		OS.swt_fixed_resize (GTK.gtk_widget_get_parent(fixedHandle), fixedHandle, width, height);
+		long parentHandle = GTK.gtk_widget_get_parent(fixedHandle);
+		if (parentHandle != 0 && OS.g_type_is_a(OS.G_OBJECT_TYPE(parentHandle), OS.swt_fixed_get_type())) {
+			OS.swt_fixed_resize (parentHandle, fixedHandle, width, height);
+		} else {
+			GTK.gtk_widget_set_size_request (fixedHandle, width, height);
+		}
 	}
 	long child = scrolledHandle != 0 ? scrolledHandle : handle;
 	Point sizes = resizeCalculationsGTK3 (child, width, height);

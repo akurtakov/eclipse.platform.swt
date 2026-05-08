@@ -1102,10 +1102,11 @@ void resizeControl () {
 		if (GTK.GTK4 && (style & SWT.SEPARATOR) != 0) {
 			/*
 			 * On GTK4 the control is a child of the separator's GtkBox.
-			 * The box manages layout via hexpand/vexpand/fill, so we only
-			 * need to size the handle (the box itself) and skip setLocation.
+			 * Size the handle (the box itself) and the control, but skip
+			 * setLocation since the box manages positioning.
 			 */
 			resizeHandle(itemRect.width, itemRect.height);
+			control.setSize (itemRect.width, itemRect.height);
 			return;
 		}
 		control.setSize (itemRect.width, itemRect.height);
