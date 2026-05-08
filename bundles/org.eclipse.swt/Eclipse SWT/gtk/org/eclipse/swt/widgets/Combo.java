@@ -455,8 +455,14 @@ Point computeSizeInPixels (int wHint, int hHint, boolean changed) {
 
 @Override
 Point computeNativeSize (long h, int wHint, int hHint, boolean changed) {
-	// Set fit-model property when computing size, if it was previously disabled
-	if (fitModelToggled) {
+	/*
+	 * For READ_ONLY combos, temporarily enable fit-model on the CellView
+	 * so that GTK's preferred size accounts for all items in the model,
+	 * not just the currently selected (possibly empty) row. Without this,
+	 * a Combo with no selection computes a width that only fits the
+	 * drop-down arrow. See bug 539367.
+	 */
+	if (cellHandle != 0) {
 		GTK.gtk_cell_view_set_fit_model(cellHandle, true);
 	}
 	int [] xpad = new int[1];
@@ -482,8 +488,8 @@ Point computeNativeSize (long h, int wHint, int hHint, boolean changed) {
 		nativeSize.x += buttonPadding.left + buttonPadding.right;
 	}
 
-	// Re-set fit-model to false as it was before
-	if (fitModelToggled) {
+	// Restore fit-model to false if it was previously toggled by adjustChildClipping
+	if (cellHandle != 0 && fitModelToggled) {
 		GTK.gtk_cell_view_set_fit_model(cellHandle, false);
 	}
 	return nativeSize;
