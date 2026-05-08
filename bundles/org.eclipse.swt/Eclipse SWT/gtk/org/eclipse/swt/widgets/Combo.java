@@ -488,8 +488,8 @@ Point computeNativeSize (long h, int wHint, int hHint, boolean changed) {
 		nativeSize.x += buttonPadding.left + buttonPadding.right;
 	}
 
-	// Restore fit-model to false if it was previously toggled by adjustChildClipping
-	if (cellHandle != 0 && fitModelToggled) {
+	// Restore fit-model to false after measuring
+	if (cellHandle != 0) {
 		GTK.gtk_cell_view_set_fit_model(cellHandle, false);
 	}
 	return nativeSize;
