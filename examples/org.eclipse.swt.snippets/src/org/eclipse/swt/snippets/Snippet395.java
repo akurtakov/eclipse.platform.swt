@@ -28,6 +28,21 @@ import org.eclipse.swt.widgets.*;
 public class Snippet395 {
 
 public static void main(String[] args) {
+	final int iconSize = 16;
+	final int folderBodyX = 1;
+	final int folderBodyY = 3;
+	final int folderBodyWidth = 14;
+	final int folderBodyHeight = 11;
+	final int folderTabX = 1;
+	final int folderTabY = 1;
+	final int folderTabWidth = 8;
+	final int folderTabHeight = 3;
+	final int folderOutlineX = 0;
+	final int folderOutlineY = 2;
+	final int folderOutlineWidth = iconSize - 1;
+	final int folderOutlineHeight = 13;
+	final int iconTextSpacing = 6;
+
 	Display display = new Display();
 	Shell shell = new Shell(display);
 	shell.setText("Snippet 395");
@@ -39,22 +54,26 @@ public static void main(String[] args) {
 		item.setText("Project " + i + " - src - org.eclipse.swt.snippets");
 	}
 
-	Image image = new Image(display, 16, 16);
+	// Shared image used for all rows; disposed once after the event loop.
+	Image image = new Image(display, iconSize, iconSize);
 	GC imageGC = new GC(image);
-	imageGC.setBackground(display.getSystemColor(SWT.COLOR_YELLOW));
-	imageGC.fillRectangle(1, 3, 14, 11);
-	imageGC.setBackground(display.getSystemColor(SWT.COLOR_DARK_YELLOW));
-	imageGC.fillRectangle(1, 1, 8, 3);
-	imageGC.setForeground(display.getSystemColor(SWT.COLOR_BLACK));
-	imageGC.drawRectangle(0, 2, 15, 13);
-	imageGC.dispose();
+	try {
+		imageGC.setBackground(display.getSystemColor(SWT.COLOR_YELLOW));
+		imageGC.fillRectangle(folderBodyX, folderBodyY, folderBodyWidth, folderBodyHeight);
+		imageGC.setBackground(display.getSystemColor(SWT.COLOR_DARK_YELLOW));
+		imageGC.fillRectangle(folderTabX, folderTabY, folderTabWidth, folderTabHeight);
+		imageGC.setForeground(display.getSystemColor(SWT.COLOR_BLACK));
+		imageGC.drawRectangle(folderOutlineX, folderOutlineY, folderOutlineWidth, folderOutlineHeight);
+	} finally {
+		imageGC.dispose();
+	}
 
 	Listener ownerDraw = event -> {
 		TreeItem item = (TreeItem) event.item;
 		switch (event.type) {
 			case SWT.MeasureItem: {
 				Point textExtent = event.gc.stringExtent(item.getText());
-				event.width = image.getBounds().width + 6 + textExtent.x;
+				event.width = image.getBounds().width + iconTextSpacing + textExtent.x;
 				event.height = Math.max(event.height, image.getBounds().height + 2);
 				break;
 			}
@@ -66,7 +85,7 @@ public static void main(String[] args) {
 				event.gc.drawImage(image, event.x, imageY);
 				Point textExtent = event.gc.stringExtent(item.getText());
 				int textY = event.y + (event.height - textExtent.y) / 2;
-				event.gc.drawText(item.getText(), event.x + image.getBounds().width + 6, textY, true);
+				event.gc.drawText(item.getText(), event.x + image.getBounds().width + iconTextSpacing, textY, true);
 				break;
 			}
 		}
