@@ -517,7 +517,7 @@ public boolean getEnabled () {
 	checkWidget();
 
 	if (GTK.GTK4) {
-		if ((style & SWT.CASCADE) != 0) {
+		if ((style & (SWT.CASCADE | SWT.SEPARATOR)) != 0 || actionHandle == 0) {
 			return true;
 		}
 
