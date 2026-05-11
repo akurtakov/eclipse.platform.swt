@@ -3995,8 +3995,16 @@ void runUpdate() {
 	Rectangle rectAfter = getClientArea();
 	if (!rectBefore.equals(rectAfter)) {
 		notifyListeners(SWT.Resize, new Event());
-		layout();
 	}
+	/*
+	 * Always call layout() to ensure the selected content control fills the
+	 * CTabFolder body. On GTK4 the widget may have been pre-allocated at the
+	 * correct size by the native layout pipeline before the Java layout ran,
+	 * causing Composite.setBounds to skip CTabFolderLayout.layout() (sameExtent
+	 * == true). The asyncExec-based runUpdate() is the right place to guarantee
+	 * that the content control always gets correct bounds after initialization.
+	 */
+	layout();
 }
 
 void updateBkImages(boolean colorChanged) {
