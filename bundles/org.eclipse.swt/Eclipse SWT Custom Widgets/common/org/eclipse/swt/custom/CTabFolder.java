@@ -891,8 +891,8 @@ public Rectangle getClientArea() {
 		trim.height += wrapHeight;
 	}
 	if (minimized) return new Rectangle(-trim.x, -trim.y, 0, 0);
-	int width = Math.max(0, size.x - trim.width);
-	int height = Math.max(0, size.y - trim.height);
+	int width = size.x - trim.width;
+	int height = size.y - trim.height;
 	return new Rectangle(-trim.x, -trim.y, width, height);
 }
 

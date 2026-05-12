@@ -1140,8 +1140,8 @@ int setBounds (int x, int y, int width, int height, boolean move, boolean resize
 			allocation.y = y;
 		}
 		if (resize) {
-			allocation.width = width;
-			allocation.height = height;
+			allocation.width = Math.max (1, width);
+			allocation.height = Math.max (1, height);
 		}
 		/*
 		 * The widget needs to be shown before its size is allocated

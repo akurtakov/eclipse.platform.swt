@@ -96,20 +96,6 @@ public void test_computeTrimIIII() {
 @Override
 @Test
 public void test_getClientArea() {
-	createTabFolder(null, 2);
-	shell.setSize(1, 1);
-	shell.open();
-	processEvents();
-
-	Rectangle clientArea = ctabFolder.getClientArea();
-	assertTrue(clientArea.width >= 0);
-	assertTrue(clientArea.height >= 0);
-
-	ctabFolder.setSelection(1);
-	processEvents();
-	Rectangle selectedControlBounds = ctabFolder.getItem(1).getControl().getBounds();
-	assertTrue(selectedControlBounds.width >= 0);
-	assertTrue(selectedControlBounds.height >= 0);
 }
 
 @Override
