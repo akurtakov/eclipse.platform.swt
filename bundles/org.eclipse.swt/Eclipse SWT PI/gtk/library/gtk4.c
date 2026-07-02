@@ -359,6 +359,18 @@ JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1content_1formats_1builder_1new)
 }
 #endif
 
+#ifndef NO_gdk_1content_1formats_1contain_1gtype
+JNIEXPORT jboolean JNICALL GTK4_NATIVE(gdk_1content_1formats_1contain_1gtype)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
+{
+	jboolean rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1content_1formats_1contain_1gtype_FUNC);
+	rc = (jboolean)gdk_content_formats_contain_gtype((GdkContentFormats *)arg0, (GType)arg1);
+	GTK4_NATIVE_EXIT(env, that, gdk_1content_1formats_1contain_1gtype_FUNC);
+	return rc;
+}
+#endif
+
 #ifndef NO_gdk_1content_1formats_1get_1gtypes
 JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1content_1formats_1get_1gtypes)
 	(JNIEnv *env, jclass that, jlong arg0, jlongArray arg1)
@@ -610,6 +622,66 @@ JNIEXPORT void JNICALL GTK4_NATIVE(gdk_1content_1serializer_1set_1task_1data)
 	GTK4_NATIVE_ENTER(env, that, gdk_1content_1serializer_1set_1task_1data_FUNC);
 	gdk_content_serializer_set_task_data((GdkContentSerializer*)arg0, (gpointer)arg1, (GDestroyNotify)arg2);
 	GTK4_NATIVE_EXIT(env, that, gdk_1content_1serializer_1set_1task_1data_FUNC);
+}
+#endif
+
+#ifndef NO_gdk_1drop_1finish
+JNIEXPORT void JNICALL GTK4_NATIVE(gdk_1drop_1finish)
+	(JNIEnv *env, jclass that, jlong arg0, jint arg1)
+{
+	GTK4_NATIVE_ENTER(env, that, gdk_1drop_1finish_FUNC);
+	gdk_drop_finish((GdkDrop *)arg0, (GdkDragAction)arg1);
+	GTK4_NATIVE_EXIT(env, that, gdk_1drop_1finish_FUNC);
+}
+#endif
+
+#ifndef NO_gdk_1drop_1get_1actions
+JNIEXPORT jint JNICALL GTK4_NATIVE(gdk_1drop_1get_1actions)
+	(JNIEnv *env, jclass that, jlong arg0)
+{
+	jint rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1drop_1get_1actions_FUNC);
+	rc = (jint)gdk_drop_get_actions((GdkDrop *)arg0);
+	GTK4_NATIVE_EXIT(env, that, gdk_1drop_1get_1actions_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gdk_1drop_1get_1formats
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1drop_1get_1formats)
+	(JNIEnv *env, jclass that, jlong arg0)
+{
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1drop_1get_1formats_FUNC);
+	rc = (jlong)gdk_drop_get_formats((GdkDrop *)arg0);
+	GTK4_NATIVE_EXIT(env, that, gdk_1drop_1get_1formats_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gdk_1drop_1read_1value_1async
+JNIEXPORT void JNICALL GTK4_NATIVE(gdk_1drop_1read_1value_1async)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1, jint arg2, jlong arg3, jlong arg4, jlong arg5)
+{
+	GTK4_NATIVE_ENTER(env, that, gdk_1drop_1read_1value_1async_FUNC);
+	gdk_drop_read_value_async((GdkDrop *)arg0, (GType)arg1, arg2, (GCancellable *)arg3, (GAsyncReadyCallback)arg4, (gpointer)arg5);
+	GTK4_NATIVE_EXIT(env, that, gdk_1drop_1read_1value_1async_FUNC);
+}
+#endif
+
+#ifndef NO_gdk_1drop_1read_1value_1finish
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1drop_1read_1value_1finish)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1, jlongArray arg2)
+{
+	jlong *lparg2=NULL;
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1drop_1read_1value_1finish_FUNC);
+	if (arg2) if ((lparg2 = (*env)->GetLongArrayElements(env, arg2, NULL)) == NULL) goto fail;
+	rc = (jlong)gdk_drop_read_value_finish((GdkDrop *)arg0, (GAsyncResult *)arg1, (GError **)lparg2);
+fail:
+	if (arg2 && lparg2) (*env)->ReleaseLongArrayElements(env, arg2, lparg2, 0);
+	GTK4_NATIVE_EXIT(env, that, gdk_1drop_1read_1value_1finish_FUNC);
+	return rc;
 }
 #endif
 
@@ -2838,6 +2910,16 @@ JNIEXPORT jlong JNICALL GTK4_NATIVE(gtk_1widget_1pick)
 	rc = (jlong)gtk_widget_pick((GtkWidget *)arg0, (double)arg1, (double)arg2, (GtkPickFlags)arg3);
 	GTK4_NATIVE_EXIT(env, that, gtk_1widget_1pick_FUNC);
 	return rc;
+}
+#endif
+
+#ifndef NO_gtk_1widget_1remove_1controller
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1widget_1remove_1controller)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
+{
+	GTK4_NATIVE_ENTER(env, that, gtk_1widget_1remove_1controller_FUNC);
+	gtk_widget_remove_controller((GtkWidget *)arg0, (GtkEventController *)arg1);
+	GTK4_NATIVE_EXIT(env, that, gtk_1widget_1remove_1controller_FUNC);
 }
 #endif
 

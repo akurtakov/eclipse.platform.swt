@@ -383,14 +383,17 @@ public class OS extends C {
 	public static final byte[] delete_text = ascii("delete-text");
 	public static final byte[] direction_changed = ascii("direction-changed");
 	public static final byte[] dpi_changed = ascii("notify::scale-factor");
+	public static final byte[] accept = ascii("accept");
 	public static final byte[] drag_begin = ascii("drag-begin");
 	public static final byte[] drag_data_delete = ascii("drag-data-delete");
 	public static final byte[] drag_data_get = ascii("drag-data-get");
 	public static final byte[] drag_data_received = ascii("drag-data-received");
 	public static final byte[] drag_drop = ascii("drag-drop");
 	public static final byte[] drag_end = ascii("drag-end");
+	public static final byte[] drag_enter = ascii("drag-enter");
 	public static final byte[] drag_leave = ascii("drag-leave");
 	public static final byte[] drag_motion = ascii("drag-motion");
+	public static final byte[] drop = ascii("drop");
 	public static final byte[] prepare = ascii("prepare");
 	public static final byte[] draw = ascii("draw");
 	public static final byte[] end = ascii("end");

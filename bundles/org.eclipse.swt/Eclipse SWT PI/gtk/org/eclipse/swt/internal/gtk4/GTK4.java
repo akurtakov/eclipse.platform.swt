@@ -228,6 +228,36 @@ public class GTK4 {
 	public static final native void gdk_content_formats_builder_add_mime_type(long builder, byte[] mime_type);
 	/** @param builder cast=(GdkContentFormatsBuilder *) */
 	public static final native long gdk_content_formats_builder_free_to_formats(long builder);
+	/**
+	 * @param formats cast=(GdkContentFormats *)
+	 * @param type cast=(GType)
+	 */
+	public static final native boolean gdk_content_formats_contain_gtype(long formats, long type);
+
+	/* GdkDrop */
+	/**
+	 * @param drop cast=(GdkDrop *)
+	 * @param action cast=(GdkDragAction)
+	 */
+	public static final native void gdk_drop_finish(long drop, int action);
+	/** @param drop cast=(GdkDrop *) */
+	public static final native int gdk_drop_get_actions(long drop);
+	/** @param drop cast=(GdkDrop *) */
+	public static final native long gdk_drop_get_formats(long drop);
+	/**
+	 * @param drop cast=(GdkDrop *)
+	 * @param type cast=(GType)
+	 * @param cancellable cast=(GCancellable *)
+	 * @param callback cast=(GAsyncReadyCallback)
+	 * @param user_data cast=(gpointer)
+	 */
+	public static final native void gdk_drop_read_value_async(long drop, long type, int io_priority, long cancellable, long callback, long user_data);
+	/**
+	 * @param drop cast=(GdkDrop *)
+	 * @param result cast=(GAsyncResult *)
+	 * @param error cast=(GError **)
+	 */
+	public static final native long gdk_drop_read_value_finish(long drop, long result, long[] error);
 
 	/* GtkFileChooser */
 	/**
@@ -705,6 +735,11 @@ public class GTK4 {
 	 * @param controller cast=(GtkEventController *)
 	 */
 	public static final native void gtk_widget_add_controller(long widget, long controller);
+	/**
+	 * @param widget cast=(GtkWidget *)
+	 * @param controller cast=(GtkEventController *)
+	 */
+	public static final native void gtk_widget_remove_controller(long widget, long controller);
 	/** @param widget cast=(GtkWidget *) */
 	public static final native long gtk_widget_get_first_child(long widget);
 	/** @param widget cast=(GtkWidget *) */
