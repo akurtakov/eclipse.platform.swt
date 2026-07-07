@@ -910,6 +910,22 @@ int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long 
 		sendSelectionEvent(SWT.Selection, e, false);
 		return GTK4.GTK_EVENT_SEQUENCE_CLAIMED;
 	}
+	/*
+	 * GTK4: Handle right-click (button 3) to fire SWT.MenuDetect on the parent
+	 * ToolBar, replicating the GTK3 gtk3_event_after behavior. The gesture
+	 * coordinates are item-local; translate them to the ToolBar's coordinate
+	 * space and then to screen coordinates before calling parent.showMenu().
+	 */
+	if (n_press == 1 && GTK.gtk_gesture_single_get_current_button(gesture) == 3) {
+		double[] destX = new double[1];
+		double[] destY = new double[1];
+		boolean translated = GTK4.gtk_widget_translate_coordinates(handle, parent.handle, x, y, destX, destY);
+		int barX = translated ? (int) destX[0] : (int) x;
+		int barY = translated ? (int) destY[0] : (int) y;
+		Point screenPt = parent.toDisplay(barX, barY);
+		parent.showMenu(screenPt.x, screenPt.y);
+		return GTK4.GTK_EVENT_SEQUENCE_CLAIMED;
+	}
 	return GTK4.GTK_EVENT_SEQUENCE_NONE;
 }
 
@@ -949,8 +965,8 @@ void hookEvents () {
 		OS.g_signal_connect(motionController, OS.enter, display.enterMotionProc, ENTER);
 		OS.g_signal_connect(motionController, OS.leave, display.leaveProc, LEAVE);
 
-		//TODO: event-after
 		long clickController = GTK4.gtk_gesture_click_new();
+		GTK.gtk_gesture_single_set_button(clickController, 0);
 		GTK4.gtk_widget_add_controller(handle, clickController);
 		OS.g_signal_connect(clickController, OS.pressed, display.gesturePressReleaseProc, GESTURE_PRESSED);
 	} else {
