@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2023 IBM Corporation and others.
+ * Copyright (c) 2000, 2026 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -653,6 +653,10 @@ long gtk_activate (long widget) {
 		}
 	}
 
+	if (GTK.GTK4 && (style & SWT.CHECK) != 0) {
+		OS.g_simple_action_set_state(actionHandle, OS.g_variant_new_boolean(!getSelection()));
+	}
+
 	sendSelectionEvent (SWT.Selection);
 	return 0;
 }
@@ -684,7 +688,7 @@ void hookEvents() {
 	super.hookEvents();
 
 	if (GTK.GTK4) {
-		if ((style & SWT.PUSH) != 0 || (style & SWT.RADIO) != 0) {
+		if ((style & SWT.PUSH) != 0 || (style & SWT.RADIO) != 0 || (style & SWT.CHECK) != 0) {
 			OS.g_signal_connect(actionHandle, OS.activate, display.activateProc, handle);
 		}
 	} else {
