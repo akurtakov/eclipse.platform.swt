@@ -983,6 +983,10 @@ long gtk_show (long widget) {
 		return 0;
 	}
 	sendEvent (SWT.Show);
+	/* Retry cascade submenu signal hookup once the DROP_DOWN popover is shown. */
+	if (GTK.GTK4 && (style & SWT.DROP_DOWN) != 0 && popoverHandle != 0) {
+		connectCascadeSubMenuSignals(this, popoverHandle);
+	}
 	if (OS.ubuntu_menu_proxy_get() != 0) {
 		MenuItem[] items = getItems();
 		for (int i=0; i<items.length; i++) {
@@ -1535,4 +1539,3 @@ public void setVisible (boolean visible) {
 	}
 }
 }
-
