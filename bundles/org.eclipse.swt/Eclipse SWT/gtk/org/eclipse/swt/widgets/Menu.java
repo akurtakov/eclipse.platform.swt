@@ -864,7 +864,9 @@ long gtk_map (long widget) {
 			 * The POP_UP GtkPopoverMenu has been mapped. Its handle IS the GtkPopoverMenu,
 			 * and nested GtkPopoverMenu children for any CASCADE submenus already exist in
 			 * its widget tree. Connect SHOW/HIDE signals for those nested submenus now.
+			 * Also inject any custom icon widgets into the popover.
 			 */
+			injectCustomMenuIcons();
 			connectCascadeSubMenuSignals(this, handle);
 		}
 	}
@@ -886,6 +888,7 @@ private void connectDropDownMenuSignals() {
 				display.addWidget(popover, menuItem.menu);
 				OS.g_signal_connect_closure_by_id(popover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
 				OS.g_signal_connect_closure_by_id(popover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+				menuItem.menu.injectCustomMenuIcons();
 				/*
 				 * Also connect SHOW/HIDE signals for nested CASCADE submenus.
 				 */
@@ -917,9 +920,19 @@ private void connectCascadeSubMenuSignals(Menu menu, long parentPopoverHandle) {
 				display.addWidget(nestedPopover, item.menu);
 				OS.g_signal_connect_closure_by_id(nestedPopover, display.signalIds[SHOW], 0, display.getClosure(SHOW), false);
 				OS.g_signal_connect_closure_by_id(nestedPopover, display.signalIds[HIDE], 0, display.getClosure(HIDE), false);
+				item.menu.injectCustomMenuIcons();
 				// Recurse to handle further nested CASCADE submenus
 				connectCascadeSubMenuSignals(item.menu);
 			}
+		}
+	}
+}
+
+void injectCustomMenuIcons() {
+	if (items == null) return;
+	for (MenuItem item : items) {
+		if ((item.style & SWT.SEPARATOR) == 0 && item.customWidgetHandle != 0) {
+			item.injectCustomWidgetGTK4();
 		}
 	}
 }
@@ -985,6 +998,7 @@ long gtk_show (long widget) {
 	sendEvent (SWT.Show);
 	/* Retry cascade submenu signal hookup once the DROP_DOWN popover is shown. */
 	if (GTK.GTK4 && (style & SWT.DROP_DOWN) != 0 && popoverHandle != 0) {
+		injectCustomMenuIcons();
 		connectCascadeSubMenuSignals(this, popoverHandle);
 	}
 	if (OS.ubuntu_menu_proxy_get() != 0) {

@@ -796,6 +796,20 @@ JNIEXPORT void JNICALL GTK4_NATIVE(gsk_1render_1node_1unref)
 }
 #endif
 
+#ifndef NO_gtk_1actionable_1set_1action_1name
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1actionable_1set_1action_1name)
+	(JNIEnv *env, jclass that, jlong arg0, jbyteArray arg1)
+{
+	jbyte *lparg1=NULL;
+	GTK4_NATIVE_ENTER(env, that, gtk_1actionable_1set_1action_1name_FUNC);
+	if (arg1) if ((lparg1 = (*env)->GetByteArrayElements(env, arg1, NULL)) == NULL) goto fail;
+	gtk_actionable_set_action_name((GtkActionable *)arg0, (const char *)lparg1);
+fail:
+	if (arg1 && lparg1) (*env)->ReleaseByteArrayElements(env, arg1, lparg1, 0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1actionable_1set_1action_1name_FUNC);
+}
+#endif
+
 #ifndef NO_gtk_1box_1append
 JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1box_1append)
 	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
@@ -2257,6 +2271,22 @@ JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1picture_1set_1paintable)
 	GTK4_NATIVE_ENTER(env, that, gtk_1picture_1set_1paintable_FUNC);
 	gtk_picture_set_paintable((GtkPicture *)arg0, (GdkPaintable *)arg1);
 	GTK4_NATIVE_EXIT(env, that, gtk_1picture_1set_1paintable_FUNC);
+}
+#endif
+
+#ifndef NO_gtk_1popover_1menu_1add_1child
+JNIEXPORT jboolean JNICALL GTK4_NATIVE(gtk_1popover_1menu_1add_1child)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1, jbyteArray arg2)
+{
+	jbyte *lparg2=NULL;
+	jboolean rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gtk_1popover_1menu_1add_1child_FUNC);
+	if (arg2) if ((lparg2 = (*env)->GetByteArrayElements(env, arg2, NULL)) == NULL) goto fail;
+	rc = (jboolean)gtk_popover_menu_add_child((GtkPopoverMenu *)arg0, (GtkWidget *)arg1, (const char *)lparg2);
+fail:
+	if (arg2 && lparg2) (*env)->ReleaseByteArrayElements(env, arg2, lparg2, 0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1popover_1menu_1add_1child_FUNC);
+	return rc;
 }
 #endif
 
