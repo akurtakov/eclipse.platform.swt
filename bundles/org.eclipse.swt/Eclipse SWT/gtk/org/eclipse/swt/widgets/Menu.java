@@ -261,6 +261,88 @@ boolean ableToSetLocation() {
 	return hasLocation;
 }
 
+/*
+ * GtkPopoverMenu inserts section-separator widgets from a GLib idle callback
+ * (gtk_menu_section_box_handle_sync_separators). Calling gtk_popover_popup()
+ * synchronously would measure the menu before those widgets exist, undersizing
+ * it into a scrollbar. Deferring via asyncExec lets that idle run first.
+ */
+void popupGtk4Popover(boolean hasPointingTo, int pointX, int pointY) {
+	if (isDisposed()) return;
+	display.asyncExec(() -> {
+		if (isDisposed()) return;
+		if (hasPointingTo) {
+			GdkRectangle popoverPosition = new GdkRectangle();
+			popoverPosition.x = pointX;
+			popoverPosition.y = pointY;
+			popoverPosition.width = popoverPosition.height = 1;
+			GTK.gtk_popover_set_pointing_to(handle, popoverPosition);
+			// Hide during the fit (scheduleGtk4PopoverFit) so the menu appears
+			// directly at its final location without a visible jump.
+			GTK.gtk_widget_set_opacity(handle, 0.0);
+			GTK.gtk_popover_popup(handle);
+			scheduleGtk4PopoverFit(pointX, pointY, 0);
+		} else {
+			GTK.gtk_popover_popup(handle);
+		}
+	});
+}
+
+/*
+ * Keep a bottom-of-screen popup menu from being shrunk into a scrolled view.
+ *
+ * GtkPopover's layout carries GDK_ANCHOR_RESIZE_Y (a GtkPopoverMenu can always
+ * shrink), so when the menu fits neither below the anchor nor flipped above it,
+ * the compositor shrinks it and shows a scrollbar. Wayland has no global window
+ * coordinates, so we cannot compute the overflow directly; instead we compare
+ * the popover's allocated height to its natural height and shift the anchor up
+ * by the shortfall, which yields exactly that much more room below. Repeated
+ * until it fits (usually 2-3 passes; the bound is just a safety cap). The
+ * popover stays hidden until settled.
+ */
+static final int GTK4_POPOVER_FIT_MAX_ITERATIONS = 6;
+
+void scheduleGtk4PopoverFit(int pointX, int pointY, int iteration) {
+	display.asyncExec(() -> {
+		if (isDisposed()) return;
+		if (!GTK.gtk_widget_get_mapped(handle)) {
+			// Menu was dismissed before it settled; make sure it is not left
+			// permanently transparent for a future show.
+			GTK.gtk_widget_set_opacity(handle, 1.0);
+			return;
+		}
+		if (iteration >= GTK4_POPOVER_FIT_MAX_ITERATIONS) {
+			revealGtk4Popover();
+			return;
+		}
+		int[] natHeight = new int[1];
+		GTK4.gtk_widget_measure(handle, GTK.GTK_ORIENTATION_VERTICAL, -1, null, natHeight, null, null);
+		int allocated = GTK4.gtk_widget_get_height(handle);
+		if (natHeight[0] <= 0 || allocated <= 0) {
+			// Not measured/allocated yet; wait another turn.
+			scheduleGtk4PopoverFit(pointX, pointY, iteration + 1);
+			return;
+		}
+		int shortfall = natHeight[0] - allocated;
+		if (shortfall <= 0) {
+			revealGtk4Popover();
+			return;
+		}
+		int newPointY = pointY - shortfall;
+		GdkRectangle popoverPosition = new GdkRectangle();
+		popoverPosition.x = pointX;
+		popoverPosition.y = newPointY;
+		popoverPosition.width = popoverPosition.height = 1;
+		GTK.gtk_popover_set_pointing_to(handle, popoverPosition);
+		scheduleGtk4PopoverFit(pointX, newPointY, iteration + 1);
+	});
+}
+
+void revealGtk4Popover() {
+	if (isDisposed()) return;
+	GTK.gtk_widget_set_opacity(handle, 1.0);
+}
+
 void _setVisible (boolean visible) {
 	if (visible == GTK.gtk_widget_get_mapped (handle)) return;
 	if (visible) {
@@ -307,7 +389,6 @@ void _setVisible (boolean visible) {
 			long eventPtr = 0;
 			if (ableToSetLocation()) {
 				if (GTK.GTK4) {
-					GdkRectangle popoverPosition = new GdkRectangle();
 					/*
 					 * gtk_popover_set_pointing_to expects coordinates in the coordinate
 					 * space of the popover's current parent widget.
@@ -323,24 +404,16 @@ void _setVisible (boolean visible) {
 					 * relative to that control - do not apply the shell to
 					 * parent.handle translation.
 					 */
+					int pointX = x, pointY = y;
 					long currentParent = GTK.gtk_widget_get_parent(handle);
 					if (currentParent == parent.handle) {
 						double[] relX = new double[1], relY = new double[1];
 						if (GTK4.gtk_widget_translate_coordinates(parent.getShell().topHandle(), parent.handle, x, y, relX, relY)) {
-							popoverPosition.x = (int) relX[0];
-							popoverPosition.y = (int) relY[0];
-						} else {
-							popoverPosition.x = x;
-							popoverPosition.y = y;
+							pointX = (int) relX[0];
+							pointY = (int) relY[0];
 						}
-					} else {
-						popoverPosition.x = x;
-						popoverPosition.y = y;
 					}
-					popoverPosition.width = popoverPosition.height = 1;
-					GTK.gtk_popover_set_pointing_to(handle, popoverPosition);
-
-					GTK.gtk_popover_popup(handle);
+					popupGtk4Popover(true, pointX, pointY);
 				} else {
 					// Create the GdkEvent manually as we need to control
 					// certain fields like the event window
@@ -384,7 +457,7 @@ void _setVisible (boolean visible) {
 				}
 			} else {
 				if (GTK.GTK4) {
-					GTK.gtk_popover_popup(handle);
+					popupGtk4Popover(false, 0, 0);
 				} else {
 					/*
 					 *  GTK Feature: gtk_menu_popup is deprecated as of GTK3.22 and the new method gtk_menu_popup_at_pointer
