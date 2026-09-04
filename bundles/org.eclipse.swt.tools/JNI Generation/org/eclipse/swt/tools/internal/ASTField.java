@@ -32,10 +32,9 @@ public ASTField(ASTClass declaringClass, FieldDeclaration field, VariableDeclara
 	start = field.getStartPosition();
 	
 	Javadoc doc = field.getJavadoc();
-	List<TagElement> tags = null;
 	if (doc != null) {
-		tags = doc.tags();
-		for (TagElement tag : tags) {
+		for (Object element : doc.tags()) {
+			TagElement tag = (TagElement) element;
 			if ("@field".equals(tag.getTagName())) {
 				String data = tag.fragments().get(0).toString();
 				setMetaData(data);
