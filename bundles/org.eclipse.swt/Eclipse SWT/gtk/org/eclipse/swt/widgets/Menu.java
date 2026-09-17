@@ -1118,6 +1118,44 @@ void hookRowSelectionSync(long popover) {
 	GTK.gtk_event_controller_set_propagation_phase(keyController, GTK.GTK_PHASE_CAPTURE);
 	OS.g_signal_connect(keyController, OS.key_pressed, display.keyPressReleaseProc, KEY_PRESSED);
 	GTK4.gtk_widget_add_controller(popover, keyController);
+	/* Presses outside the menu may reach the popover instead of dismissing it, see gtk_gesture_press_event. */
+	long clickGesture = GTK4.gtk_gesture_click_new();
+	GTK.gtk_event_controller_set_propagation_phase(clickGesture, GTK.GTK_PHASE_CAPTURE);
+	GTK.gtk_gesture_single_set_button(clickGesture, 0);
+	OS.g_signal_connect(clickGesture, OS.pressed, display.gesturePressReleaseProc, GESTURE_PRESSED);
+	GTK4.gtk_widget_add_controller(popover, clickGesture);
+}
+
+/** GTK4: the GtkPopoverMenu showing this menu, 0 for a menu bar or a submenu not shown yet. */
+long menuPopover() {
+	return (style & SWT.POP_UP) != 0 ? handle : popoverHandle;
+}
+
+/*
+ * GDK on Wayland keeps a single device grab per device: the grab of a submenu popover
+ * ends the grab of its parent, and closing the submenu restores nothing, so a later
+ * press outside the menu no longer dismisses it (GTK 4.22; later GTK keeps a stack of
+ * grabs). GTK still routes that press to the popover holding its own grab; dismiss from
+ * here what GDK would have dismissed.
+ */
+@Override
+int gtk_gesture_press_event(long gesture, int n_press, double x, double y, long event) {
+	long surface = event != 0 ? GDK.gdk_event_get_surface(event) : 0;
+	if (surface == 0 || surface == GTK4.gtk_native_get_surface(GTK.gtk_event_controller_get_widget(gesture))) {
+		return GTK4.GTK_EVENT_SEQUENCE_NONE; /* Within this popover; its rows handle the press. */
+	}
+	Menu root = this;
+	for (Menu menu = getParentMenu(); menu != null && (menu.style & SWT.BAR) == 0; menu = menu.getParentMenu()) {
+		long popover = menu.menuPopover();
+		if (popover != 0 && surface == GTK4.gtk_native_get_surface(popover)) {
+			/* A press on a menu above this one closes the submenus below that menu. */
+			hideSubmenu(root.menuPopover(), popover);
+			return GTK4.GTK_EVENT_SEQUENCE_NONE;
+		}
+		root = menu;
+	}
+	GTK.gtk_popover_popdown(root.menuPopover());
+	return GTK4.GTK_EVENT_SEQUENCE_NONE;
 }
 
 @Override
@@ -1145,7 +1183,7 @@ void gtk4_focus_leave_event(long controller, long event) {
 private void syncRowSelectionLater(long popover) {
 	display.asyncExec(() -> {
 		/* The popover may have been rebuilt, and freed, meanwhile; see wireSubMenuPopover. */
-		if (!isDisposed() && popover == ((style & SWT.POP_UP) != 0 ? handle : popoverHandle)) syncRowSelection(popover);
+		if (!isDisposed() && popover == menuPopover()) syncRowSelection(popover);
 	});
 }
 
@@ -1281,7 +1319,8 @@ private void addNativeIndicatorBoxes(long widget) {
 /**
  * GTK4: moves the focus within the menu for an arrow or Tab key, see Shell.gtk_move_focus.
  * {@code popover} is the innermost popover holding the focus. Returns false to leave the
- * key to GTK, which switches the menu bar's menus.
+ * key to GTK, which switches the menu bar's menus. Left and Right are not mirrored for
+ * SWT.RIGHT_TO_LEFT: GTK's popover menus open on Right and close on Left in any direction.
  */
 boolean moveFocus(long popover, int direction) {
 	long shellHandle = getShell().shellHandle;
@@ -1304,8 +1343,8 @@ boolean moveFocus(long popover, int direction) {
 	if (direction == GTK.GTK_DIR_RIGHT && submenu != 0 && findRow(submenu, false) != 0) submenu = 0;
 	if (submenu != 0) {
 		closeSubmenuFromKeyboard(submenu, root);
-		/* Or they may have rebuilt the rows: the old focus is gone with them. */
-		if (isDisposed() || display.getWidget(root) == null) return true;
+		/* Its SWT.Hide listeners may have disposed the menu (with it the root and the shell) or rebuilt the rows: the old focus is gone with them. */
+		if (isDisposed()) return true;
 		oldFocus = GTK.gtk_window_get_focus(shellHandle);
 		if (!isMenuRow(oldFocus)) return true;
 		if (vertical) {
@@ -1337,7 +1376,13 @@ boolean moveFocus(long popover, int direction) {
 			return true;
 		}
 	}
-	if (!GTK.gtk_widget_child_focus(root, direction)) {
+	boolean handled = GTK.gtk_widget_child_focus(root, direction);
+	if (!handled && vertical && isMenuRow(oldFocus)) {
+		/* Up and Down never fail unless GDK hid a submenu for a press on this menu, see forgetSubmenu. */
+		forgetSubmenu(root, oldFocus);
+		handled = GTK.gtk_widget_child_focus(root, direction);
+	}
+	if (!handled) {
 		/* A menu bar drop-down declines Left and Right so that the bar can switch menus; every other key stays in the menu. */
 		return vertical || !bar;
 	}
@@ -1358,28 +1403,40 @@ boolean moveFocus(long popover, int direction) {
 }
 
 /*
- * GTK4: closes a submenu for a key. GTK's own popdown cascades and closes the whole
- * menu, so hide it as GTK's hover close does. GtkPopoverMenu then keeps sending the
- * keys to the hidden submenu until a Left, the only key it does not send there, makes
- * it forget the submenu and focus its active row: make that the cascade row by
- * focusing it from outside its subtree, as its focus-enter is what records it.
+ * GTK4: closes a submenu for a key. A pointer resting on the cascade row reopens the
+ * submenu the moment it hides (the row sees the pointer again); keep the row out of
+ * picking until the pointer moves on, see Display#restoreMenuRowTarget.
  */
 private void closeSubmenuFromKeyboard(long submenu, long root) {
 	long row = GTK.gtk_widget_get_parent(submenu);
-	/*
-	 * A pointer resting on the cascade row reopens the submenu the moment it hides (the
-	 * row sees the pointer again); keep the row out of picking until the pointer moves
-	 * on, see Display#restoreMenuRowTarget.
-	 */
 	display.restoreMenuRowTarget();
 	OS.g_object_set(row, Converter.javaStringToCString("can-target"), false, 0);
 	OS.g_object_ref(row);
 	display.untargetableMenuRow = row;
+	hideSubmenu(submenu, root);
+}
+
+/*
+ * GTK4: hides a submenu, {@code above} being a popover above it. GTK's own popdown
+ * cascades and closes the whole menu, so hide it as GTK's hover close does.
+ */
+private void hideSubmenu(long submenu, long above) {
+	long row = GTK.gtk_widget_get_parent(submenu);
 	GTK.gtk_widget_set_visible(submenu, false);
-	if (isDisposed()) return; /* Hidden, this menu's SWT.Hide listeners ran and may have disposed the menu. */
-	GTK.gtk_widget_grab_focus(root);
+	if (isDisposed()) return; /* Hidden, the submenu's SWT.Hide listeners ran and may have disposed this menu. */
+	forgetSubmenu(above, row);
+}
+
+/*
+ * GTK4: a GtkPopoverMenu keeps sending the keys to a submenu hidden behind its back (by
+ * SWT, or by GDK for a press on the menu) until a Left, the only key it does not send
+ * there, makes it forget the submenu and focus its active row: make that {@code row} by
+ * focusing it from outside its subtree, as its focus-enter is what records it.
+ */
+private static void forgetSubmenu(long above, long row) {
+	GTK.gtk_widget_grab_focus(above);
 	GTK.gtk_widget_grab_focus(row);
-	GTK.gtk_widget_child_focus(root, GTK.GTK_DIR_LEFT);
+	GTK.gtk_widget_child_focus(above, GTK.GTK_DIR_LEFT);
 }
 
 /*
