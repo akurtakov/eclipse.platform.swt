@@ -1159,7 +1159,13 @@ int setBounds (int x, int y, int width, int height, boolean move, boolean resize
 			resizeHandle (newWidth, newHeight);
 		}
 	}
-	if (!sameOrigin || !sameExtent) {
+	/*
+	* A control given a zero dimension is hidden below, and GTK4 clears the
+	* allocation of a widget it hides, so allocating it here is wasted work
+	* that only warns about the 1x1 minimum resizeHandle() had to record.
+	*/
+	boolean zeroSized = GTK.GTK4 && resize && !sameExtent && (width == 0 || height == 0);
+	if ((!sameOrigin || !sameExtent) && !zeroSized) {
 		/*
 		* Cause a size allocation this widget's topHandle.  Note that
 		* all calls to gtk_widget_size_allocate() must be preceded by
