@@ -1165,19 +1165,28 @@ boolean checkAndSetThemeDetails (String themeName) {
 		return true;
 	}
 	long settings = GTK.gtk_settings_get_default ();
-	int [] darkThemePreferred = new int [1];
-	OS.g_object_get(settings, GTK.gtk_application_prefer_dark_theme, darkThemePreferred, 0);
-	if (darkThemePreferred[0] != 0) {
+	boolean dark;
+	if (GTK.GTK_VERSION >= OS.VERSION(4, 20, 0)) {
+		// GTK fills 'gtk-interface-color-scheme' from the system, e.g. the settings portal
+		int [] colorScheme = new int [1];
+		OS.g_object_get(settings, GTK.gtk_interface_color_scheme, colorScheme, 0);
+		dark = colorScheme[0] == GTK.GTK_INTERFACE_COLOR_SCHEME_DARK;
+	} else {
+		int [] darkThemePreferred = new int [1];
+		OS.g_object_get(settings, GTK.gtk_application_prefer_dark_theme, darkThemePreferred, 0);
+		dark = darkThemePreferred[0] != 0;
+	}
+	if (dark) {
 		/*
-		 * When 'gtk-application-prefer-dark-theme' is set to true, GTK uses the 'dark'
-		 * variant of the theme specified in the system settings -- see 'get_theme_name'
-		 * in the GtkSettings source code for more context.
+		 * With a dark color scheme GTK uses the 'dark' variant of the theme specified
+		 * in the system settings -- see 'get_theme_name' in the GtkSettings source code
+		 * for more context.
 		 */
 		System.setProperty("org.eclipse.swt.internal.gtk.theme", themeName.concat(":dark"));
 	} else {
 		System.setProperty("org.eclipse.swt.internal.gtk.theme", themeName);
 	}
-	return darkThemePreferred[0] != 0;
+	return dark;
 }
 
 void createDisplay (DeviceData data) {
