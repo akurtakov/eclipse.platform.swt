@@ -255,6 +255,7 @@ enum {
 
 static void swt_fixed_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec);
 static void swt_fixed_set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec);
+static void swt_fixed_dispose (GObject *object);
 static void swt_fixed_finalize (GObject *object);
 static void swt_fixed_realize (GtkWidget *widget);
 static void swt_fixed_map (GtkWidget *widget);
@@ -278,6 +279,7 @@ static void swt_fixed_class_init (SwtFixedClass *class) {
 	/* GOject implementation */
 	gobject_class->set_property = swt_fixed_set_property;
 	gobject_class->get_property = swt_fixed_get_property;
+	gobject_class->dispose = swt_fixed_dispose;
 	gobject_class->finalize = swt_fixed_finalize;
 
 	/* Scrollable implementation */
@@ -357,6 +359,19 @@ static void swt_fixed_init (SwtFixed *widget) {
 	priv->children = NULL;
 	priv->hadjustment = NULL;
 	priv->vadjustment = NULL;
+}
+
+static void swt_fixed_dispose (GObject *object) {
+	SwtFixed *widget = SWT_FIXED (object);
+
+	// GTK only detaches the accessible it creates itself, so detach ours
+	// before the widget goes away. Otherwise an AT holding a reference to
+	// the accessible makes GTK use the freed widget.
+	if (widget->accessible) {
+		gtk_accessible_set_widget (GTK_ACCESSIBLE (widget->accessible), NULL);
+	}
+
+	G_OBJECT_CLASS (swt_fixed_parent_class)->dispose (object);
 }
 
 static void swt_fixed_finalize (GObject *object) {
